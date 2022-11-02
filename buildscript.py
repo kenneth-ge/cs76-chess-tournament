@@ -4,6 +4,8 @@ f3 = open("src/ChessAI.cpp", "r")
 
 total = f1.read() + "\n" + f2.read() + "\n" + f3.read()
 
+total.replace('#include "chess/thc.cpp"', '')
+
 f = open("all_inline.cpp", "a")
 f.write(total)
 f.close()
