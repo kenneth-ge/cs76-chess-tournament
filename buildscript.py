@@ -4,11 +4,12 @@ f3 = open("src/ChessAI.cpp", "r")
 
 total = f1.read() + "\n" + f2.read() + "\n" + f3.read()
 
-total.replace('#include "chess/thc.cpp"', '')
+total = total.replace('#include "chess/thc.cpp"', '')
 
-f = open("all_inline.cpp", "a")
+f = open("all_inline.cpp", "w")
 f.write(total)
 f.close()
 
 import subprocess
 subprocess.run(["g++", "all_inline.cpp"])
+subprocess.run(["./a"])
