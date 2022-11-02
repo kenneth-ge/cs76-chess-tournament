@@ -13,3 +13,4 @@ f.close()
 import subprocess
 subprocess.run(["g++", "all_inline.cpp"])
 subprocess.run(["./a"])
+subprocess.run(["./a.out"])
