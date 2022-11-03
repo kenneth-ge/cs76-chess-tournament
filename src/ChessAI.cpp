@@ -96,6 +96,13 @@ pair<bool, int> cutoff_test(ChessRules &board, int depth, int max_depth){
 		return {true, evaluate(board, depth)};
 	}
 
+    TERMINAL eval_final_position;
+    board.Evaluate( eval_final_position );
+
+    if(eval_final_position != NOT_TERMINAL){
+    	return {true, evaluate(board, depth)};
+    }
+
     int remaining = max_depth - 10 * depth;
 
     if(remaining <= 0){
@@ -104,9 +111,6 @@ pair<bool, int> cutoff_test(ChessRules &board, int depth, int max_depth){
         bool randbool = rand() % 10; //0 to 9
         return {remaining > randbool, evaluate(board, depth)};
     }
-
-    TERMINAL eval_final_position;
-    board.Evaluate( eval_final_position );
 
     return {eval_final_position != NOT_TERMINAL, evaluate(board, depth)};
 }
@@ -212,6 +216,7 @@ pair<Move, int> min_value(ChessRules &cr, int depth, int alpha, int beta, int ma
     }
 
     assert(best_eval_value < INF);
+    //assert(best_move.NaturalOut(&cr) != "--");
 
     return {best_move, best_eval_value};
 
@@ -231,7 +236,7 @@ int main() {
     init_values();
 
 	ChessPosition cb;
-	bool works = cb.Forsyth("rn1r2k1/1pq2p1p/p2p1bpB/3P4/P3Q3/2PB4/5PPP/2R1R1K1 w - - 1 2");
+	bool works = cb.Forsyth("3k4/6p1/3K1pPp/3PrP2/p7/P7/3Q3P/1q6 w - - 0 2");
 	assert(works);
 	ChessRules cr(cb);
 
