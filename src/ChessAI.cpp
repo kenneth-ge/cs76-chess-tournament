@@ -14,8 +14,8 @@
 using namespace std;
 using namespace thc;
 
-pair<Move*, int> max_value(ChessRules &cr, int depth, int alpha, int beta);
-pair<Move*, int> min_value(ChessRules &cr, int depth, int alpha, int beta);
+pair<Move, int> max_value(ChessRules &cr, int depth, int alpha, int beta);
+pair<Move, int> min_value(ChessRules &cr, int depth, int alpha, int beta);
 
 void display_position( thc::ChessRules &cr, const std::string &description )
 {
@@ -58,9 +58,9 @@ int evaluate(ChessRules &board, int depth){
     if(eval_final_position != NOT_TERMINAL){
         switch(eval_final_position){
             case TERMINAL_WCHECKMATE:
-                return CHECKMATE - depth;
-            case TERMINAL_BCHECKMATE:
                 return -(CHECKMATE - depth);
+            case TERMINAL_BCHECKMATE:
+                return CHECKMATE - depth;
             default: //tie; count stalemate as 0 regardless of which player causes it
                 return 0;
         }
@@ -87,16 +87,16 @@ pair<bool, int> cutoff_test(ChessRules &board, int depth){
     }
 
     TERMINAL eval_final_position;
-    bool legal2 = board.Evaluate( eval_final_position );
+    board.Evaluate( eval_final_position );
 
-    return {eval_final_position != NOT_TERMINAL, 0};
+    return {eval_final_position != NOT_TERMINAL, evaluate(board, depth)};
 }
 
-pair<Move*, int> max_value(ChessRules &cr, int depth, int alpha, int beta){
+pair<Move, int> max_value(ChessRules &cr, int depth, int alpha, int beta){
     auto [stop, eval] = cutoff_test(cr, depth);
     
     if(stop){
-        return {nullptr, eval};
+        return {Move(), eval};
     }
     
     //do not use eval after cutoff_test lol
@@ -105,7 +105,7 @@ pair<Move*, int> max_value(ChessRules &cr, int depth, int alpha, int beta){
     cr.GenLegalMoveList(moves);
 
     auto best_eval_value = -INF;
-    Move *best_move = nullptr;
+    Move best_move;
 
     for(auto x: moves){
     	cr.PlayMove(x);
@@ -113,7 +113,7 @@ pair<Move*, int> max_value(ChessRules &cr, int depth, int alpha, int beta){
         cr.PopMove(x);
         if(curr_eval_value > best_eval_value) {
             best_eval_value = curr_eval_value;
-            best_move = &x;
+            best_move = x;
         }
         if(best_eval_value >= beta){
             return {best_move, best_eval_value};
@@ -122,35 +122,35 @@ pair<Move*, int> max_value(ChessRules &cr, int depth, int alpha, int beta){
     }
 
     //best_move == null should not happen
-    assert(best_move != nullptr);
-    if(best_move == nullptr){
-        return {nullptr, evaluate(cr, depth)};
-    }
+    assert(best_eval_value > -INF);
+
+    return {best_move, best_eval_value};
 }
 
-pair<Move*, int> min_value(ChessRules &cr, int depth, int alpha, int beta){
+pair<Move, int> min_value(ChessRules &cr, int depth, int alpha, int beta){
     auto [stop, eval] = cutoff_test(cr, depth);
 
     if(stop){
-        return {nullptr, eval};
+        return {Move(), eval};
     }
 
     vector<thc::Move> moves;
     cr.GenLegalMoveList(moves);
 
     auto best_eval_value = INF;
-    Move *best_move = nullptr;
+    Move best_move;
 
     int num_moves_considered = 0;
 
     for(auto x: moves){
     	cr.PlayMove(x);
-        auto [move, curr_eval_value] = max_value(cr, depth+1, alpha, beta);
+        pair<Move, int> p = max_value(cr, depth+1, alpha, beta);
+        Move move = p.first; int curr_eval_value = p.second;
         cr.PopMove(x);
         num_moves_considered++;
         if(curr_eval_value < best_eval_value) {
             best_eval_value = curr_eval_value;
-            best_move = &x;
+            best_move = x;
         }
         if(best_eval_value <= alpha){
             return {best_move, best_eval_value};
@@ -158,19 +158,19 @@ pair<Move*, int> min_value(ChessRules &cr, int depth, int alpha, int beta){
         beta = min(beta, curr_eval_value);
     }
 
-    assert(best_move != nullptr);
-    if(best_move == nullptr){
-        return {nullptr, evaluate(cr, depth)};
-    }
+    assert(best_eval_value < INF);
+
+    return {best_move, best_eval_value};
+
 }
 
 thc::Move choose_move(ChessRules &board){
     if(board.white){
         auto [move, eval] = max_value(board, 0, -INF, INF);
-        return *move;
+        return move;
     }else{
         auto [move, eval] = min_value(board, 0, -INF, INF);
-        return *move;
+        return move;
     }
 }
 
@@ -182,12 +182,23 @@ int main() {
 	assert(works);
 	ChessRules cr(cb);
 
-    Move best_move = choose_move(cr);
+	display_position(cr, "Starting position");
 
-    cout << best_move.TerseOut() << endl;
+	while(true){
+		Move best_move = choose_move(cr);
 
-    cr.PlayMove(best_move);
-    display_position(cr, "Best Move");
+		if(best_move.NaturalOut(&cr) == "--"){
+			break;
+		}
+
+		cout << "terse out " << best_move.TerseOut() << endl;
+		cout << "natural out " << best_move.NaturalOut(&cr) << endl;
+
+		cr.PlayMove(best_move);
+		display_position(cr, "Next Move");
+	}
+
+	cout << "GAME OVER" << endl;
 
 	return 0;
 }
