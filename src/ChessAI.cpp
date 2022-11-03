@@ -14,8 +14,8 @@
 using namespace std;
 using namespace thc;
 
-pair<Move, int> max_value(ChessRules &cr, int depth, int alpha, int beta);
-pair<Move, int> min_value(ChessRules &cr, int depth, int alpha, int beta);
+pair<Move, int> max_value(ChessRules &cr, int depth, int alpha, int beta, int max_depth);
+pair<Move, int> min_value(ChessRules &cr, int depth, int alpha, int beta, int max_depth);
 
 void display_position( thc::ChessRules &cr, const std::string &description )
 {
@@ -33,7 +33,8 @@ void display_position( thc::ChessRules &cr, const std::string &description )
 #define CHECKMATE (INF / 2)
 
 // change this later on
-const int MAX_DEPTH = 55;
+const int MAX_DEPTH = 75;
+const int DEFAULT_MAX_DEPTH = 55;
 
 int value[128];
 
@@ -84,9 +85,18 @@ int evaluate(ChessRules &board, int depth){
     return eval;
 }
 
+int max_depth_reached = 0;
+
 //depth is multiplied by 10
-pair<bool, int> cutoff_test(ChessRules &board, int depth){
-    int remaining = MAX_DEPTH - 10 * depth;
+pair<bool, int> cutoff_test(ChessRules &board, int depth, int max_depth){
+	max_depth_reached = max(max_depth_reached, depth);
+
+	//Past actual max depth
+	if(MAX_DEPTH - 10 * depth <= 0){
+		return {true, evaluate(board, depth)};
+	}
+
+    int remaining = max_depth - 10 * depth;
 
     if(remaining <= 0){
         return {true, evaluate(board, depth)};
@@ -103,8 +113,12 @@ pair<bool, int> cutoff_test(ChessRules &board, int depth){
 
 pair<int, int> priority(Move &m, ChessRules &board, bool check, bool mate, bool stalemate){
 	//higher priority/depth for captures and check
+	if(mate){
+		return {-200, 5};
+	}
+
 	if(check){
-		return {-100, 1}; //priority = -100 (very high priority), extra depth of 1
+		return {-100, 5}; //priority = -100 (very high priority), extra depth of one half
 	}
 	if(m.capture != ' '){
 		//if capture
@@ -125,8 +139,8 @@ void priority_sort(vector<Move> &moves, vector<priority_move> &sorted_moves, Che
 	sort(sorted_moves.begin(), sorted_moves.end());
 }
 
-pair<Move, int> max_value(ChessRules &cr, int depth, int alpha, int beta){
-    auto [stop, eval] = cutoff_test(cr, depth);
+pair<Move, int> max_value(ChessRules &cr, int depth, int alpha, int beta, int max_depth){
+    auto [stop, eval] = cutoff_test(cr, depth, max_depth);
 
     if(stop){
         return {Move(), eval};
@@ -145,7 +159,7 @@ pair<Move, int> max_value(ChessRules &cr, int depth, int alpha, int beta){
     for(auto pm: v2){
     	Move x = pm.m;
     	cr.PlayMove(x);
-        auto [move, curr_eval_value] = min_value(cr, depth+1 - pm.depth, alpha, beta);
+        auto [move, curr_eval_value] = min_value(cr, depth+1, alpha, beta, max_depth + pm.depth);
         cr.PopMove(x);
         if(curr_eval_value > best_eval_value) {
             best_eval_value = curr_eval_value;
@@ -163,8 +177,8 @@ pair<Move, int> max_value(ChessRules &cr, int depth, int alpha, int beta){
     return {best_move, best_eval_value};
 }
 
-pair<Move, int> min_value(ChessRules &cr, int depth, int alpha, int beta){
-    auto [stop, eval] = cutoff_test(cr, depth);
+pair<Move, int> min_value(ChessRules &cr, int depth, int alpha, int beta, int max_depth){
+    auto [stop, eval] = cutoff_test(cr, depth, max_depth);
 
     if(stop){
         return {Move(), eval};
@@ -183,7 +197,7 @@ pair<Move, int> min_value(ChessRules &cr, int depth, int alpha, int beta){
     for(auto pm: v2){
     	Move x = pm.m;
     	cr.PlayMove(x);
-        pair<Move, int> p = max_value(cr, depth+1 - pm.depth, alpha, beta);
+        pair<Move, int> p = max_value(cr, depth+1, alpha, beta, max_depth + pm.depth);
         Move move = p.first; int curr_eval_value = p.second;
         cr.PopMove(x);
         num_moves_considered++;
@@ -205,10 +219,10 @@ pair<Move, int> min_value(ChessRules &cr, int depth, int alpha, int beta){
 
 thc::Move choose_move(ChessRules &board){
     if(board.white){
-        auto [move, eval] = max_value(board, 0, -INF, INF);
+        auto [move, eval] = max_value(board, 0, -INF, INF, DEFAULT_MAX_DEPTH);
         return move;
     }else{
-        auto [move, eval] = min_value(board, 0, -INF, INF);
+        auto [move, eval] = min_value(board, 0, -INF, INF, DEFAULT_MAX_DEPTH);
         return move;
     }
 }
@@ -217,7 +231,7 @@ int main() {
     init_values();
 
 	ChessPosition cb;
-	bool works = cb.Forsyth("1k2r2r/ppp2Q2/3p3b/2nP3p/2PN4/6PB/PP3R1P/1K6 b - - 0 1");
+	bool works = cb.Forsyth("rn1r2k1/1pq2p1p/p2p1bpB/3P4/P3Q3/2PB4/5PPP/2R1R1K1 w - - 1 2");
 	assert(works);
 	ChessRules cr(cb);
 
@@ -238,6 +252,8 @@ int main() {
 	}
 
 	cout << "GAME OVER" << endl;
+
+	cout << "max depth reached " << max_depth_reached << endl;
 
 	return 0;
 }
