@@ -1,6 +1,6 @@
 //============================================================================
 // Name        : Chess.cpp
-// Author      : 
+// Author      :
 // Version     :
 // Copyright   : Your copyright notice
 // Description : Hello World in C++, Ansi-style
@@ -52,6 +52,15 @@ void init_values(){
     value['k'] = -1000000;
 }
 
+struct priority_move {
+	Move m;
+	int priority;
+	int depth;
+	bool operator <(const priority_move& another) const {
+	   return priority < another.priority;
+	}
+};
+
 int evaluate(ChessRules &board, int depth){
     TERMINAL eval_final_position;
     board.Evaluate( eval_final_position );
@@ -67,7 +76,7 @@ int evaluate(ChessRules &board, int depth){
     }
 
     int eval = 0;
-    
+
     for(int i = 0; i < 64; i++){
         eval += value[board.squares[i]];
     }
@@ -92,24 +101,51 @@ pair<bool, int> cutoff_test(ChessRules &board, int depth){
     return {eval_final_position != NOT_TERMINAL, evaluate(board, depth)};
 }
 
+pair<int, int> priority(Move &m, ChessRules &board, bool check, bool mate, bool stalemate){
+	//higher priority/depth for captures and check
+	if(check){
+		return {-100, 1}; //priority = -100 (very high priority), extra depth of 1
+	}
+	if(m.capture != ' '){
+		//if capture
+		return {-80, 1};
+	}
+	return {0, 0};
+}
+
+void priority_sort(vector<Move> &moves, vector<priority_move> &sorted_moves, ChessRules &board, vector<bool> &check, vector<bool> &mate, vector<bool> &stalemate){
+	sorted_moves.resize(moves.size());
+	for(int i = 0; i < moves.size(); i++){
+		//play and pop could be expensive -- see whether this is worth it, and if it is, maybe we should only run it in the endgame
+		board.PlayMove(moves[i]);
+		auto [pr, depth] = priority(moves[i], board, check[i], mate[i], stalemate[i]);
+		sorted_moves[i] = {moves[i], pr, depth};
+		board.PopMove(moves[i]);
+	}
+	sort(sorted_moves.begin(), sorted_moves.end());
+}
+
 pair<Move, int> max_value(ChessRules &cr, int depth, int alpha, int beta){
     auto [stop, eval] = cutoff_test(cr, depth);
-    
+
     if(stop){
         return {Move(), eval};
     }
-    
+
     //do not use eval after cutoff_test lol
 
-    vector<thc::Move> moves;
-    cr.GenLegalMoveList(moves);
+    vector<thc::Move> moves; std::vector<bool> check, mate, stalemate;
+    cr.GenLegalMoveList(moves, check, mate, stalemate);
+    vector<priority_move> v2;
+    priority_sort(moves, v2, cr, check, mate, stalemate);
 
     auto best_eval_value = -INF;
     Move best_move;
 
-    for(auto x: moves){
+    for(auto pm: v2){
+    	Move x = pm.m;
     	cr.PlayMove(x);
-        auto [move, curr_eval_value] = min_value(cr, depth+1, alpha, beta);
+        auto [move, curr_eval_value] = min_value(cr, depth+1 - pm.depth, alpha, beta);
         cr.PopMove(x);
         if(curr_eval_value > best_eval_value) {
             best_eval_value = curr_eval_value;
@@ -134,17 +170,20 @@ pair<Move, int> min_value(ChessRules &cr, int depth, int alpha, int beta){
         return {Move(), eval};
     }
 
-    vector<thc::Move> moves;
-    cr.GenLegalMoveList(moves);
+    vector<thc::Move> moves; std::vector<bool> check, mate, stalemate;
+    cr.GenLegalMoveList(moves, check, mate, stalemate);
+    vector<priority_move> v2;
+    priority_sort(moves, v2, cr, check, mate, stalemate);
 
     auto best_eval_value = INF;
     Move best_move;
 
     int num_moves_considered = 0;
 
-    for(auto x: moves){
+    for(auto pm: v2){
+    	Move x = pm.m;
     	cr.PlayMove(x);
-        pair<Move, int> p = max_value(cr, depth+1, alpha, beta);
+        pair<Move, int> p = max_value(cr, depth+1 - pm.depth, alpha, beta);
         Move move = p.first; int curr_eval_value = p.second;
         cr.PopMove(x);
         num_moves_considered++;
@@ -176,7 +215,7 @@ thc::Move choose_move(ChessRules &board){
 
 int main() {
     init_values();
-    
+
 	ChessPosition cb;
 	bool works = cb.Forsyth("1k2r2r/ppp2Q2/3p3b/2nP3p/2PN4/6PB/PP3R1P/1K6 b - - 0 1");
 	assert(works);
