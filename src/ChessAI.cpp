@@ -270,16 +270,16 @@ pair<bool, int> cutoff_test(ChessRules &board, int depth, int max_depth, int &ma
 pair<int, int> priority(Move &m, ChessRules &board, bool check, bool mate, bool stalemate){
 	//higher priority/depth for captures and check
 	if(mate){
-		return {-2000, 5};
+		return {-2000, 10};
 	}
 
 	if(check){
-		return {-1000, 5}; //priority = -100 (very high priority), extra depth of one half
+		return {-1000, 15}; //priority = -100 (very high priority), extra depth of one half
 	}
 
 	if(m.capture != ' '){
 		//if capture
-		return {-800 + (board.white ? 1 : -1) * value[m.capture] / 100, 15};
+		return {-800 + (board.white ? 1 : -1) * value[m.capture] / 100, 10};
 	}
 	return {0, 0};
 }
