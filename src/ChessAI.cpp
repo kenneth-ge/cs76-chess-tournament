@@ -239,32 +239,38 @@ int evaluate(ChessRules &board, int depth, int &material, int &absmaterial){
 
 int max_depth_reached = 0;
 
+bool stop;
 //depth is multiplied by 10
-pair<bool, int> cutoff_test(ChessRules &board, int depth, int max_depth, int &material, int &absmaterial){
+int cutoff_test(ChessRules &board, int depth, int max_depth, int &material, int &absmaterial){
 	max_depth_reached = max(max_depth_reached, depth);
 
 	//Past actual max depth
 	if(MAX_DEPTH - 10 * depth <= 0){
-		return {true, evaluate(board, depth, material, absmaterial)};
+		stop = true;
+		return evaluate(board, depth, material, absmaterial);
 	}
 
     TERMINAL eval_final_position;
     board.Evaluate( eval_final_position );
 
     if(eval_final_position != NOT_TERMINAL){
-    	return {true, evaluate(board, depth, material, absmaterial)};
+    	stop = true;
+    	return evaluate(board, depth, material, absmaterial);
     }
 
     int remaining = max_depth - 10 * depth;
 
     if(remaining <= 0){
-        return {true, evaluate(board, depth, material, absmaterial)};
+    	stop = true;
+        return evaluate(board, depth, material, absmaterial);
     }else if(remaining < 10){ //0 to 9 -- 5 for half
-        bool randbool = rand() % 10; //0 to 9
-        return {remaining > randbool, evaluate(board, depth, material, absmaterial)};
+        int randbool = rand() % 10; //0 to 9
+        stop = remaining > randbool;
+        return evaluate(board, depth, material, absmaterial);
     }
 
-    return {eval_final_position != NOT_TERMINAL, evaluate(board, depth, material, absmaterial)};
+    stop = eval_final_position != NOT_TERMINAL;
+    return evaluate(board, depth, material, absmaterial);
 }
 
 pair<int, int> priority(Move &m, ChessRules &board, bool check, bool mate, bool stalemate){
@@ -279,7 +285,7 @@ pair<int, int> priority(Move &m, ChessRules &board, bool check, bool mate, bool 
 
 	if(m.capture != ' '){
 		//if capture
-		return {-800 + (board.white ? 1 : -1) * value[m.capture] / 100, 10};
+		return {-800 + (board.white ? 1 : -1) * value[m.capture] / 100, 11};
 	}
 	return {0, 0};
 }
@@ -307,7 +313,7 @@ Move lastconsidered;
 //vector<Move> moves;
 
 int max_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int &absmaterial, int max_depth){
-	auto [stop, eval] = cutoff_test(cr, depth, max_depth, material, absmaterial);
+	int eval = cutoff_test(cr, depth, max_depth, material, absmaterial);
 
     if(stop){
         return eval;
@@ -350,7 +356,7 @@ int max_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int
 }
 
 int min_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int &absmaterial, int max_depth){
-    auto [stop, eval] = cutoff_test(cr, depth, max_depth, material, absmaterial);
+    int eval = cutoff_test(cr, depth, max_depth, material, absmaterial);
 
     if(stop){
         return eval;
