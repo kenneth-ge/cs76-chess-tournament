@@ -11,6 +11,6 @@ f.write(total)
 f.close()
 
 import subprocess
-subprocess.run(["g++", "all_inline.cpp"])
+subprocess.run(["g++", "all_inline.cpp", "-O3"])
 subprocess.run(["./a"])
 subprocess.run(["./a.out"])
