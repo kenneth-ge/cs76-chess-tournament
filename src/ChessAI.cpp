@@ -279,7 +279,7 @@ pair<int, int> priority(Move &m, ChessRules &board, bool check, bool mate, bool 
 
 	if(m.capture != ' '){
 		//if capture
-		return {-800 + (board.white ? 1 : -1) * value[m.capture], 15};
+		return {-800 + (board.white ? 1 : -1) * value[m.capture] / 100, 15};
 	}
 	return {0, 0};
 }
