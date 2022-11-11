@@ -269,8 +269,9 @@ int cutoff_test(ChessRules &board, int depth, int max_depth, int &material, int 
         return evaluate(board, depth, material, absmaterial);
     }
 
-    stop = eval_final_position != NOT_TERMINAL;
-    return evaluate(board, depth, material, absmaterial);
+    stop = false;
+    return 0;
+    //return evaluate(board, depth, material, absmaterial);
 }
 
 pair<int, int> priority(Move &m, ChessRules &board, bool check, bool mate, bool stalemate){
@@ -295,16 +296,19 @@ bool check[MAXMOVES];
 bool mate[MAXMOVES];
 bool stalemate[MAXMOVES];
 
-void priority_sort(vector<priority_move> &sorted_moves, ChessRules &board){
-	sorted_moves.resize(moves.count);
+priority_move v2[MAX_DEPTH / 10 + 2][MAXMOVES];
+
+void priority_sort(int depth, ChessRules &board){
 	for(int i = 0; i < moves.count; i++){
 		//play and pop could be expensive -- see whether this is worth it, and if it is, maybe we should only run it in the endgame
 		//board.PlayMove(moves[i]);
-		auto [pr, depth] = priority(moves.moves[i], board, check[i], mate[i], stalemate[i]);
-		sorted_moves[i] = {moves.moves[i], pr, depth};
+		auto [pr, depth2] = priority(moves.moves[i], board, check[i], mate[i], stalemate[i]);
+		v2[depth][i].m = moves.moves[i];
+		v2[depth][i].priority = pr;
+		v2[depth][i].depth = depth2;
 		//board.PopMove(moves[i]);
 	}
-	sort(sorted_moves.begin(), sorted_moves.end());
+	sort(v2[depth], v2[depth] + moves.count);
 }
 
 Move blankmove;
@@ -322,13 +326,15 @@ int max_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int
     //do not use eval after cutoff_test lol
     //moves.clear(); check.clear(); mate.clear(); stalemate.clear();
     cr.GenLegalMoveList(&moves, check, mate, stalemate);
-    vector<priority_move> v2;
-    priority_sort(v2, cr);
+    priority_sort(depth, cr);
 
     auto best_eval_value = -INF;
     Move best_move;
 
-    for(auto pm: v2){
+    int num_moves = moves.count;
+
+    for(int i = 0; i < num_moves; i++){
+    	priority_move pm = v2[depth][i];
     	Move x = pm.m;
     	cr.PlayMove(x);
     	material -= value[x.capture];
@@ -362,16 +368,17 @@ int min_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int
         return eval;
     }
 
-    vector<priority_move> v2;
     cr.GenLegalMoveList(&moves, check, mate, stalemate);
-    priority_sort(v2, cr);
+    int num_moves = moves.count;
+    priority_sort(depth, cr);
 
     auto best_eval_value = INF;
     Move best_move;
 
     int num_moves_considered = 0;
 
-    for(auto pm: v2){
+    for(int i = 0; i < num_moves; i++){
+    	priority_move pm = v2[depth][i];
     	Move x = pm.m;
     	cr.PlayMove(x);
     	material -= value[x.capture];
