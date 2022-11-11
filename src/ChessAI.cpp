@@ -58,9 +58,30 @@ void display_position( thc::ChessRules &cr, const std::string &description )
 #define CHECKMATE (INF / 2)
 
 // change this later on
-const int MAX_DEPTH = 75;
+const int MAX_DEPTH = 75; // no longer const because of our mate in X guarantee
+const int MAX_DEPTH_NUM = MAX_DEPTH / 10 + 1;
 const int DEFAULT_MAX_DEPTH = 55;
+int alt_max_depth = 75;
 int DEFAULT_MATERIAL = 0;
+
+struct checkmate_info {
+	bool is_checkmate;
+	int mate_depth;
+};
+
+checkmate_info checkmate_w(int eval){
+	if(eval >= CHECKMATE - MAX_DEPTH_NUM){
+		return {true, CHECKMATE - eval};
+	}
+	return {false, MAX_DEPTH_NUM};
+}
+
+checkmate_info checkmate_b(int eval){
+	if(eval <= -CHECKMATE + MAX_DEPTH_NUM){
+		return {true, CHECKMATE + eval};
+	}
+	return {false, MAX_DEPTH_NUM};
+}
 
 int value[128];
 int color[128];
@@ -153,7 +174,7 @@ int evaluate(ChessRules &board, int depth, int &material, int &absmaterial){
 
     squares[0] = board.wking_square; squares[1] = board.bking_square;
 
-    if(abs(material_value) <= 2.5 * value['Q']){
+    /*if(abs(material_value) <= 2.5 * value['Q']){
     	//endgame, count number of free squares the king has to move
     	bool visited[64];
 
@@ -195,7 +216,7 @@ int evaluate(ChessRules &board, int depth, int &material, int &absmaterial){
 
 			eval += free_squares * 15 * player[i];
     	}
-    }
+    }*/
 
     if(abs(material_value) >= 2 * value['Q']){
         //king protection
@@ -246,6 +267,11 @@ int cutoff_test(ChessRules &board, int depth, int max_depth, int &material, int 
 
 	//Past actual max depth
 	if(MAX_DEPTH - 10 * depth <= 0){
+		stop = true;
+		return evaluate(board, depth, material, absmaterial);
+	}
+
+	if(alt_max_depth - 10 * depth <= 0){
 		stop = true;
 		return evaluate(board, depth, material, absmaterial);
 	}
@@ -315,8 +341,11 @@ Move blankmove;
 Move lastconsidered;
 //vector<bool> check, mate, stalemate;
 //vector<Move> moves;
+int num_poss_checked;
 
 int max_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int &absmaterial, int max_depth){
+	num_poss_checked += 1;
+
 	int eval = cutoff_test(cr, depth, max_depth, material, absmaterial);
 
     if(stop){
@@ -326,23 +355,32 @@ int max_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int
     //do not use eval after cutoff_test lol
     //moves.clear(); check.clear(); mate.clear(); stalemate.clear();
     cr.GenLegalMoveList(&moves, check, mate, stalemate);
+    int num_moves = moves.count;
     priority_sort(depth, cr);
 
+    int alt_max_depth_before = alt_max_depth;
     auto best_eval_value = -INF;
     Move best_move;
 
-    int num_moves = moves.count;
-
     for(int i = 0; i < num_moves; i++){
     	priority_move pm = v2[depth][i];
+
     	Move x = pm.m;
     	cr.PlayMove(x);
     	material -= value[x.capture];
     	absmaterial -= abs(value[x.capture]);
         int curr_eval_value = min_value(cr, depth+1, alpha, beta, material, absmaterial, max_depth + pm.depth);
+
+        auto [is_checkmate, mate_depth] = checkmate_w(curr_eval_value);
+
+        if(is_checkmate){
+        	alt_max_depth = mate_depth * 10;
+        }
+
     	material += value[x.capture];
     	absmaterial += abs(value[x.capture]);
         cr.PopMove(x);
+
         if(curr_eval_value > best_eval_value) {
             best_eval_value = curr_eval_value;
             best_move = x;
@@ -354,6 +392,8 @@ int max_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int
         alpha = max(alpha, curr_eval_value);
     }
 
+    alt_max_depth = alt_max_depth_before;
+
     //best_move == null should not happen
     assert(best_eval_value > -INF);
 
@@ -362,6 +402,12 @@ int max_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int
 }
 
 int min_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int &absmaterial, int max_depth){
+	num_poss_checked += 1;
+
+	if(num_poss_checked % 100000 == 0){
+		cout << num_poss_checked << endl;
+	}
+
     int eval = cutoff_test(cr, depth, max_depth, material, absmaterial);
 
     if(stop){
@@ -377,6 +423,8 @@ int min_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int
 
     int num_moves_considered = 0;
 
+    int alt_max_depth_before = alt_max_depth;
+
     for(int i = 0; i < num_moves; i++){
     	priority_move pm = v2[depth][i];
     	Move x = pm.m;
@@ -384,6 +432,13 @@ int min_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int
     	material -= value[x.capture];
     	absmaterial -= abs(value[x.capture]);
         int curr_eval_value = max_value(cr, depth+1, alpha, beta, material, absmaterial, max_depth + pm.depth);
+
+        auto [is_checkmate, mate_depth] = checkmate_b(curr_eval_value);
+
+        if(is_checkmate){
+        	alt_max_depth = mate_depth * 10;
+        }
+
     	material += value[x.capture];
     	absmaterial += abs(value[x.capture]);
         cr.PopMove(x);
@@ -399,6 +454,8 @@ int min_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int
         beta = min(beta, curr_eval_value);
     }
 
+    alt_max_depth = alt_max_depth_before;
+
     assert(best_eval_value < INF);
     //assert(best_move.NaturalOut(&cr) != "--");
 
@@ -406,14 +463,30 @@ int min_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int
     return best_eval_value;
 }
 
+int mate_in_x = -1;
+
 thc::Move choose_move(ChessRules &board){
 	int material = 0;
 	int absmaterial = DEFAULT_MATERIAL;
     if(board.white){
-        max_value(board, 0, -INF, INF, material, absmaterial, DEFAULT_MAX_DEPTH);
+    	if(mate_in_x != -1){
+    		mate_in_x--;
+    		alt_max_depth = mate_in_x;
+    	}
+        int eval = max_value(board, 0, -INF, INF, material, absmaterial, DEFAULT_MAX_DEPTH);
+        if(eval >= CHECKMATE - 5){
+        	mate_in_x = CHECKMATE - eval;
+        }
         return lastconsidered;
     }else{
-    	min_value(board, 0, -INF, INF, material, absmaterial, DEFAULT_MAX_DEPTH);
+    	if(mate_in_x != -1){
+    		mate_in_x--;
+    		alt_max_depth = mate_in_x;
+    	}
+    	int eval = min_value(board, 0, -INF, INF, material, absmaterial, DEFAULT_MAX_DEPTH);
+        if(eval <= -(CHECKMATE - 5)){
+        	mate_in_x = CHECKMATE + eval;
+        }
         return lastconsidered;
     }
 }
