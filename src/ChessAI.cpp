@@ -252,9 +252,7 @@ int evaluate_mid(ChessRules &board, int depth, int material, int absmaterial){
     int other_player_moves = -1 * player[board.white] * count_moves(board);
     board.white = !board.white;
 
-    //TODO: delete this assert when actually running the code
-    //assert((current_player_moves + other_player_moves) * 25 < 1500);
-    //eval += (current_player_moves + other_player_moves) * 25;
+    eval += (current_player_moves + other_player_moves) * 25;
 
     squares[0] = board.wking_square; squares[1] = board.bking_square;
 
