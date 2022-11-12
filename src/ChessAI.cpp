@@ -335,12 +335,16 @@ int evaluate_mid(ChessRules &board, int depth, int material, int absmaterial){
 int evaluate_early(ChessRules &board, int depth, int material, int absmaterial){
 	int starting = evaluate_mid(board, depth, material, absmaterial);
 
-	if(board.wking_square != e1){
-		starting -= value['P'];
+	bool white_castled = (board.wking_square == g1 && board.squares[f1] == 'R') || (board.wking_square == c1 && board.squares[d1] == 'R');
+	if(board.wking_square != e1 && !white_castled){
+		starting -= 0.9 * value['P'];
 	}
-	if(board.bking_square != e8){
-		starting += value['P'];
+	starting += white_castled * 0.9 * value['P'];
+	bool black_castled = (board.bking_square == g8 && board.squares[f8] == 'r') || (board.bking_square == c8 && board.squares[d8] == 'r');
+	if(board.bking_square != e8 && !black_castled){
+		starting += 0.9 * value['P'];
 	}
+	starting += black_castled * 0.9 * value['p']; //p flips the sign (vs P for white)
 
 	return starting;
 }
