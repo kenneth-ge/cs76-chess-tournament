@@ -619,8 +619,24 @@ public:
     //  illegally "moving into check")
     void GenMoveList( MOVELIST *l );
 
+    int CountMoves();
+
     // Private stuff
-    protected:
+
+    // Generate moves for pieces that move along multi-move rays (B,R,Q)
+	int CountLongMoves( Square square, const lte *ptr );
+
+	// Generate moves for pieces that move along single-move rays (K,N,P)
+	int CountShortMoves( Square square, const lte *ptr, SPECIAL special  );
+
+	// Generate list of king moves
+	int CountKingMoves( Square square );
+
+	// Generate list of white pawn moves
+	int CountWhitePawnMoves( Square square );
+
+	// Generate list of black pawn moves
+	int CountBlackPawnMoves( Square square );
 
     // Generate moves for pieces that move along multi-move rays (B,R,Q)
     void LongMoves( MOVELIST *l, Square square, const lte *ptr );

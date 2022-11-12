@@ -18,6 +18,10 @@
 
 #include <unordered_map>
 
+int count_moves(ChessRules &r){
+	return r.CountMoves();
+}
+
 struct timeval tp;
 long int current_time_millis(){
 	gettimeofday(&tp, NULL);
@@ -65,6 +69,8 @@ const int MAX_DEPTH_NUM = MAX_DEPTH / 10 + 1;
 const int DEFAULT_MAX_DEPTH = 45;
 int alt_max_depth = 75;
 int DEFAULT_MATERIAL = 0;
+
+bool we_are_white;
 
 struct checkmate_info {
 	bool is_checkmate;
@@ -217,11 +223,13 @@ int dir2[8][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, +1}, {-1, -1}, {-1, 1}, {1, -1},
 int loc[8][2];
 
 MOVELIST countmobility;
+bool eval_mid_terminal = false;
 
 int evaluate_mid(ChessRules &board, int depth, int material, int absmaterial){
     TERMINAL eval_final_position;
     board.Evaluate( eval_final_position );
     if(eval_final_position != NOT_TERMINAL){
+    	eval_mid_terminal = true;
         switch(eval_final_position){
             case TERMINAL_WCHECKMATE:
                 return -(CHECKMATE - depth);
@@ -231,22 +239,22 @@ int evaluate_mid(ChessRules &board, int depth, int material, int absmaterial){
                 return 0;
         }
     }
+    eval_mid_terminal = false;
 
     int eval = material;
-    int material_value = absmaterial;
 
     //add things for check
     eval -= board.AttackedPiece(board.wking_square) * 500;
     eval += board.AttackedPiece(board.bking_square) * 500;
 
-    board.GenMoveList(&countmobility);
-    int current_player_moves = -1 * player[board.white] * countmobility.count;
+    int current_player_moves = -1 * player[board.white] * count_moves(board);
     board.white = !board.white;
-    board.GenMoveList(&countmobility);
-    int other_player_moves = -1 * player[board.white] * countmobility.count;
+    int other_player_moves = -1 * player[board.white] * count_moves(board);
     board.white = !board.white;
 
-    eval += (current_player_moves + other_player_moves) * 25;
+    //TODO: delete this assert when actually running the code
+    //assert((current_player_moves + other_player_moves) * 25 < 1500);
+    //eval += (current_player_moves + other_player_moves) * 25;
 
     squares[0] = board.wking_square; squares[1] = board.bking_square;
 
@@ -332,19 +340,36 @@ int evaluate_mid(ChessRules &board, int depth, int material, int absmaterial){
     return eval;
 }
 
+Move move_history[MAXMOVES];
+
 int evaluate_early(ChessRules &board, int depth, int material, int absmaterial){
 	int starting = evaluate_mid(board, depth, material, absmaterial);
 
-	bool white_castled = (board.wking_square == g1 && board.squares[f1] == 'R') || (board.wking_square == c1 && board.squares[d1] == 'R');
+	if(eval_mid_terminal)
+		return starting;
+
+	int white_castled = 0, black_castled = 0;
+
+	for(int i = depth - 1; i >= 0; i--){
+		switch(move_history[i].special){
+		case SPECIAL_WK_CASTLING:
+		case SPECIAL_WQ_CASTLING:
+			white_castled = 1;
+			break;
+		case SPECIAL_BK_CASTLING:
+		case SPECIAL_BQ_CASTLING:
+			black_castled = 1;
+			break;
+		}
+	}
 	if(board.wking_square != e1 && !white_castled){
-		starting -= 0.9 * value['P'];
+		starting -= 0.65 * value['P'];
 	}
-	starting += white_castled * 0.9 * value['P'];
-	bool black_castled = (board.bking_square == g8 && board.squares[f8] == 'r') || (board.bking_square == c8 && board.squares[d8] == 'r');
+	starting += white_castled * 450;
 	if(board.bking_square != e8 && !black_castled){
-		starting += 0.9 * value['P'];
+		starting += 0.65 * value['P'];
 	}
-	starting += black_castled * 0.9 * value['p']; //p flips the sign (vs P for white)
+	starting -= black_castled * 450;
 
 	return starting;
 }
@@ -479,6 +504,8 @@ int max_value(ChessRules &cr, int depth, int alpha, int beta, int material, int 
         }
 
     	cr.PushMove(x);
+    	move_history[depth] = x;
+
     	material -= piece_chng;
     	absmaterial -= abs(piece_chng);
         int curr_eval_value = min_value(cr, depth+1, alpha, beta, material, absmaterial, max_depth + pm.depth);
@@ -549,6 +576,8 @@ int min_value(ChessRules &cr, int depth, int alpha, int beta, int material, int 
         }
 
     	cr.PushMove(x);
+    	move_history[depth] = x;
+
     	material -= piece_chng;
     	absmaterial -= abs(piece_chng);
         int curr_eval_value = max_value(cr, depth+1, alpha, beta, material, absmaterial, max_depth + pm.depth);
@@ -624,6 +653,8 @@ int main() {
 	assert(works);
 	ChessRules cr(cb);
 	Move m;
+
+	we_are_white = cr.white;
 
 	display_position(cr, "Starting Position");
 
