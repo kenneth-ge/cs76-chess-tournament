@@ -16,6 +16,8 @@
 
 #include <queue>
 
+#include <unordered_map>
+
 struct timeval tp;
 long int current_time_millis(){
 	gettimeofday(&tp, NULL);
@@ -39,8 +41,8 @@ long end_timer(){
 using namespace std;
 using namespace thc;
 
-int max_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int &absmaterial, int max_depth);
-int min_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int &absmaterial, int max_depth);
+int max_value(ChessRules &cr, int depth, int alpha, int beta, int material, int absmaterial, int max_depth);
+int min_value(ChessRules &cr, int depth, int alpha, int beta, int material, int absmaterial, int max_depth);
 
 void display_position( thc::ChessRules &cr, const std::string &description )
 {
@@ -60,7 +62,7 @@ void display_position( thc::ChessRules &cr, const std::string &description )
 // change this later on
 const int MAX_DEPTH = 75; // no longer const because of our mate in X guarantee
 const int MAX_DEPTH_NUM = MAX_DEPTH / 10 + 1;
-const int DEFAULT_MAX_DEPTH = 55;
+const int DEFAULT_MAX_DEPTH = 45;
 int alt_max_depth = 75;
 int DEFAULT_MATERIAL = 0;
 
@@ -85,6 +87,8 @@ checkmate_info checkmate_b(int eval){
 
 int value[128];
 int color[128];
+
+unordered_map<ChessRules, Move> opening_book[6];
 
 void init_values(){
     value['P'] = 1000;
@@ -117,6 +121,73 @@ void init_values(){
     color[' '] = 0;
 }
 
+bool looked_up_successfully;
+Move lookup_table(ChessRules &cr){
+	switch(cr.full_move_count){
+	case 0:
+	case 1:
+		looked_up_successfully = true;
+		if(cr.white){
+			return {e2, e4, SPECIAL_WPAWN_2SQUARES, ' '};
+		}else{
+			if(cr.squares[d4] != ' '){
+				return {d7, d5, SPECIAL_BPAWN_2SQUARES, ' '};
+			}
+			return {e7, e5, SPECIAL_BPAWN_2SQUARES, ' '};
+		}
+		break;
+	case 2:
+		looked_up_successfully = true;
+		if(cr.white){
+			if(cr.squares[d5] != ' '){
+				return {e4, d5, NOT_SPECIAL, 'p'};
+			}else if(cr.squares[f5] != ' '){
+				return {e4, f5, NOT_SPECIAL, 'p'};
+			}
+			return {b1, c3, NOT_SPECIAL, ' '};
+		}else{
+			if(cr.squares[d5] == 'p'){
+				if(cr.squares[e4] == 'P'){
+					return {d5, e4, NOT_SPECIAL, 'P'};
+				}else if(cr.squares[c4] == 'P'){
+					return {d5, c4, NOT_SPECIAL, 'P'};
+				}
+			}
+			//otherwise our pawn is at e5
+			if(cr.squares[d4] == 'P'){
+				return {e5, d4, NOT_SPECIAL, 'P'};
+			}else if(cr.squares[f4] == 'P'){
+				return {e5, f4, NOT_SPECIAL, 'P'};
+			}
+			return {b8, c6, NOT_SPECIAL, ' '};
+		}
+		break;
+	case 3:
+		ChessEvaluation eval(cr);
+
+		vector<Move> moves;
+		eval.GenLegalMoveListSorted(moves);
+
+		looked_up_successfully = true;
+
+		for(Move m: moves){
+			if(m.capture != ' ' && (cr.squares[m.src] == 'p' || cr.squares[m.src] == 'P')){
+				return m;
+			}
+		}
+
+		if(eval.white){
+			return {g1, f3, NOT_SPECIAL, ' '};
+		}else{
+			return {g8, f6, NOT_SPECIAL, ' '};
+		}
+
+		break;
+	}
+	looked_up_successfully = false;
+	return Move();
+}
+
 struct priority_move {
 	Move m;
 	int priority;
@@ -146,7 +217,7 @@ int dir[][2] = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
 int dir2[8][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, +1}, {-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
 int loc[8][2];
 
-int evaluate(ChessRules &board, int depth, int &material, int &absmaterial){
+int evaluate(ChessRules &board, int depth, int material, int absmaterial){
     TERMINAL eval_final_position;
     board.Evaluate( eval_final_position );
     if(eval_final_position != NOT_TERMINAL){
@@ -163,14 +234,13 @@ int evaluate(ChessRules &board, int depth, int &material, int &absmaterial){
     int eval = material;
     int material_value = absmaterial;
 
-    /*for(int i = 0; i < 64; i++){
-        eval += value[board.squares[i]];
-        material_value += abs(value[board.squares[i]]);
-    }*/
-
     //add things for check
     eval -= board.AttackedPiece(board.wking_square) * 500;
     eval += board.AttackedPiece(board.bking_square) * 500;
+
+	if(board.full_move_count <= 12){
+		//TODO: castling stuff
+	}
 
     squares[0] = board.wking_square; squares[1] = board.bking_square;
 
@@ -218,42 +288,40 @@ int evaluate(ChessRules &board, int depth, int &material, int &absmaterial){
     	}
     }*/
 
-    if(abs(material_value) >= 2 * value['Q']){
-        //king protection
-        //white king first
-        for(int k = 0; k < 2; k++){
-    		for(int i = 0; i < 8; i++){
-    			loc[i][0] = squares[k] / 8;
-    			loc[i][1] = squares[k] % 8;
-    		}
+	//king protection
+	//white king first
+	for(int k = 0; k < 2; k++){
+		for(int i = 0; i < 8; i++){
+			loc[i][0] = squares[k] / 8;
+			loc[i][1] = squares[k] % 8;
+		}
 
-    		//for each direction
-    		for(int i = 0; i < 8; i++){
-    			//move eight squares or until we hit a wall or get out of bounds
-    			for(int j = 0; j < 8; j++){
-    				loc[i][0] += dir2[i][0];
-    				loc[i][1] += dir2[i][1];
+		//for each direction
+		for(int i = 0; i < 8; i++){
+			//move eight squares or until we hit a wall or get out of bounds
+			for(int j = 0; j < 8; j++){
+				loc[i][0] += dir2[i][0];
+				loc[i][1] += dir2[i][1];
 
-    				if(out_of_bounds(loc[i][0], loc[i][1])){
-    					eval += -player[k] * 4 * 5;
-    					break;
-    				}
+				if(out_of_bounds(loc[i][0], loc[i][1])){
+					eval += -player[k] * 4 * 5;
+					break;
+				}
 
-    				int val = black_or_white(board.squares[convert_to_num(loc[i][0], loc[i][1])]);
+				int val = black_or_white(board.squares[convert_to_num(loc[i][0], loc[i][1])]);
 
-    				if(val != 0){
-    					if(player[k] == val){
-    						eval += player[k] * (8 - j) * 5;
-    					}else{
-    						eval -= player[k] * j * 5;
-    					}
+				if(val != 0){
+					if(player[k] == val){
+						eval += player[k] * (8 - j) * 5;
+					}else{
+						eval -= player[k] * j * 5;
+					}
 
-    					break;
-    				}
-    			}
-    		}
-        }
-    }
+					break;
+				}
+			}
+		}
+	}
 
     return eval;
 }
@@ -262,7 +330,7 @@ int max_depth_reached = 0;
 
 bool stop;
 //depth is multiplied by 10
-int cutoff_test(ChessRules &board, int depth, int max_depth, int &material, int &absmaterial){
+int cutoff_test(ChessRules &board, int depth, int max_depth, int material, int absmaterial){
 	max_depth_reached = max(max_depth_reached, depth);
 
 	//Past actual max depth
@@ -304,15 +372,16 @@ pair<int, int> priority(Move &m, ChessRules &board, bool check, bool mate, bool 
 	//higher priority/depth for captures and check
 	if(mate){
 		return {-2000, 10};
+		//m.special ==
 	}
 
 	if(check){
-		return {-1000, 15}; //priority = -100 (very high priority), extra depth of one half
+		return {-1000, 8}; //priority = -100 (very high priority), extra depth of one half
 	}
 
 	if(m.capture != ' '){
 		//if capture
-		return {-800 + (board.white ? 1 : -1) * value[m.capture] / 100, 11};
+		return {-800 + (board.white ? 1 : -1) * value[m.capture] / 100, 5};
 	}
 	return {0, 0};
 }
@@ -328,13 +397,22 @@ void priority_sort(int depth, ChessRules &board){
 	for(int i = 0; i < moves.count; i++){
 		//play and pop could be expensive -- see whether this is worth it, and if it is, maybe we should only run it in the endgame
 		//board.PlayMove(moves[i]);
+
 		auto [pr, depth2] = priority(moves.moves[i], board, check[i], mate[i], stalemate[i]);
 		v2[depth][i].m = moves.moves[i];
 		v2[depth][i].priority = pr;
 		v2[depth][i].depth = depth2;
 		//board.PopMove(moves[i]);
+
 	}
 	sort(v2[depth], v2[depth] + moves.count);
+
+	/*if(depth <= 1){
+		cout << "depth " << depth;
+		for(int i = 0; i < moves.count; i++){
+			cout << "move " << static_cast<char>(v2[depth][i].m.capture) << " " << v2[depth][i].m.NaturalOut(&board) << endl;
+		}
+	}*/
 }
 
 Move blankmove;
@@ -343,7 +421,7 @@ Move lastconsidered;
 //vector<Move> moves;
 int num_poss_checked;
 
-int max_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int &absmaterial, int max_depth){
+int max_value(ChessRules &cr, int depth, int alpha, int beta, int material, int absmaterial, int max_depth){
 	num_poss_checked += 1;
 
 	int eval = cutoff_test(cr, depth, max_depth, material, absmaterial);
@@ -366,9 +444,16 @@ int max_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int
     	priority_move pm = v2[depth][i];
 
     	Move x = pm.m;
+
+        //queen promotion
+        int piece_chng = value[x.capture];
+        if(v2[depth][i].m.special == SPECIAL_PROMOTION_QUEEN){
+        	piece_chng += value['q'];
+        }
+
     	cr.PlayMove(x);
-    	material -= value[x.capture];
-    	absmaterial -= abs(value[x.capture]);
+    	material -= piece_chng;
+    	absmaterial -= abs(piece_chng);
         int curr_eval_value = min_value(cr, depth+1, alpha, beta, material, absmaterial, max_depth + pm.depth);
 
         auto [is_checkmate, mate_depth] = checkmate_w(curr_eval_value);
@@ -377,9 +462,10 @@ int max_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int
         	alt_max_depth = mate_depth * 10;
         }
 
-    	material += value[x.capture];
-    	absmaterial += abs(value[x.capture]);
         cr.PopMove(x);
+
+    	material += piece_chng;
+    	absmaterial += abs(piece_chng);
 
         if(curr_eval_value > best_eval_value) {
             best_eval_value = curr_eval_value;
@@ -401,7 +487,7 @@ int max_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int
     return best_eval_value;
 }
 
-int min_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int &absmaterial, int max_depth){
+int min_value(ChessRules &cr, int depth, int alpha, int beta, int material, int absmaterial, int max_depth){
 	num_poss_checked += 1;
 
 	if(num_poss_checked % 100000 == 0){
@@ -428,9 +514,16 @@ int min_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int
     for(int i = 0; i < num_moves; i++){
     	priority_move pm = v2[depth][i];
     	Move x = pm.m;
+
+        //queen promotion
+        int piece_chng = value[x.capture];
+        if(v2[depth][i].m.special == SPECIAL_PROMOTION_QUEEN){
+        	piece_chng += value['Q'];
+        }
+
     	cr.PlayMove(x);
-    	material -= value[x.capture];
-    	absmaterial -= abs(value[x.capture]);
+    	material -= piece_chng;
+    	absmaterial -= abs(piece_chng);
         int curr_eval_value = max_value(cr, depth+1, alpha, beta, material, absmaterial, max_depth + pm.depth);
 
         auto [is_checkmate, mate_depth] = checkmate_b(curr_eval_value);
@@ -439,9 +532,10 @@ int min_value(ChessRules &cr, int depth, int alpha, int beta, int &material, int
         	alt_max_depth = mate_depth * 10;
         }
 
-    	material += value[x.capture];
-    	absmaterial += abs(value[x.capture]);
         cr.PopMove(x);
+
+    	material += piece_chng;
+    	absmaterial += abs(piece_chng);
         num_moves_considered++;
         if(curr_eval_value < best_eval_value) {
             best_eval_value = curr_eval_value;
@@ -504,16 +598,32 @@ int main() {
 	ChessRules cr(cb);
 	Move m;
 
+	bool are_we_white = cr.white;
+
+	display_position(cr, "Starting Position");
+
     while(true){
+    	Move best_move;
 
-		//display_position(cr, "Starting position");
+    	if(cr.full_move_count <= 3){
+    		best_move = lookup_table(cr);
 
-		max_depth_reached = 0;
+    		//failsafe
+    		if(best_move.NaturalOut(&cr) == '--'){
+        		looked_up_successfully = false;
+    		}
+    	}else{
+    		looked_up_successfully = false;
+    	}
 
-		start_timer();
-		Move best_move = choose_move(cr);
-		long time = end_timer();
-		total_time += time;
+    	if(!looked_up_successfully){
+			max_depth_reached = 0;
+
+			start_timer();
+			best_move = choose_move(cr);
+			long time = end_timer();
+			total_time += time;
+    	}
 
 		cout << "time " << time << endl;
 		cout << "total time " << total_time << endl;
@@ -524,9 +634,16 @@ int main() {
 		cout << "natural out " << best_move.NaturalOut(&cr) << endl;
 		cr.PlayMove(best_move);
 
-		std::getline(std::cin, str);
+		bool okay = false;
+		while(!okay){
+			std::getline(std::cin, str);
 
-		m.TerseIn(&cr, str.c_str());
+			okay = m.TerseIn(&cr, str.c_str());
+
+			if(!okay){
+				cout << "not okay lol" << endl;
+			}
+		}
 		cr.PlayMove(m);
     }
 
