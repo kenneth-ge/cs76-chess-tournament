@@ -150,6 +150,7 @@ Move lookup_table(ChessRules &cr){
 				}else if(cr.squares[c4] == 'P'){
 					return {d5, c4, NOT_SPECIAL, 'P'};
 				}
+				return {b8, c6, NOT_SPECIAL, ' '};
 			}
 			//otherwise our pawn is at e5
 			if(cr.squares[d4] == 'P'){
@@ -215,7 +216,9 @@ int dir[][2] = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
 int dir2[8][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, +1}, {-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
 int loc[8][2];
 
-int evaluate(ChessRules &board, int depth, int material, int absmaterial){
+MOVELIST countmobility;
+
+int evaluate_mid(ChessRules &board, int depth, int material, int absmaterial){
     TERMINAL eval_final_position;
     board.Evaluate( eval_final_position );
     if(eval_final_position != NOT_TERMINAL){
@@ -236,9 +239,14 @@ int evaluate(ChessRules &board, int depth, int material, int absmaterial){
     eval -= board.AttackedPiece(board.wking_square) * 500;
     eval += board.AttackedPiece(board.bking_square) * 500;
 
-	if(board.full_move_count <= 12){
-		//TODO: castling stuff
-	}
+    board.GenMoveList(&countmobility);
+    int current_player_moves = -1 * player[board.white] * countmobility.count;
+    board.white = !board.white;
+    board.GenMoveList(&countmobility);
+    int other_player_moves = -1 * player[board.white] * countmobility.count;
+    board.white = !board.white;
+
+    eval += (current_player_moves + other_player_moves) * 25;
 
     squares[0] = board.wking_square; squares[1] = board.bking_square;
 
@@ -323,6 +331,23 @@ int evaluate(ChessRules &board, int depth, int material, int absmaterial){
 
     return eval;
 }
+
+int evaluate_early(ChessRules &board, int depth, int material, int absmaterial){
+	int starting = evaluate_mid(board, depth, material, absmaterial);
+
+	if(board.wking_square != e1){
+		starting -= value['P'];
+	}
+	if(board.bking_square != e8){
+		starting += value['P'];
+	}
+
+	return starting;
+}
+
+//TODO: benchmark because it's possible that compiler optimizations with using just a regular function could actually make it faster
+//to just have an if-statement
+int (*evaluate)(ChessRules &board, int depth, int material, int absmaterial) = evaluate_early;
 
 int max_depth_reached = 0;
 
@@ -596,22 +621,28 @@ int main() {
 	ChessRules cr(cb);
 	Move m;
 
-	bool are_we_white = cr.white;
-
 	display_position(cr, "Starting Position");
 
     while(true){
     	Move best_move;
+
+    	cout << "full move count " << cr.full_move_count << endl;
 
     	if(cr.full_move_count <= 3){
     		best_move = lookup_table(cr);
 
     		//failsafe
     		if(best_move.NaturalOut(&cr) == "--"){
+    			cout << best_move.TerseOut() << endl;
+    			cout << "not valid " << best_move.NaturalOut(&cr) << endl;
         		looked_up_successfully = false;
     		}
     	}else{
     		looked_up_successfully = false;
+    	}
+
+    	if(cr.full_move_count > 11){
+    		evaluate = evaluate_mid;
     	}
 
     	if(!looked_up_successfully){

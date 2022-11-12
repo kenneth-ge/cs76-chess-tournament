@@ -615,12 +615,12 @@ public:
     // Test fundamental internal assumptions and operations
     void TestInternals();
 
-// Private stuff
-protected:
-
     // Generate a list of all possible moves in a position (including
     //  illegally "moving into check")
     void GenMoveList( MOVELIST *l );
+
+    // Private stuff
+    protected:
 
     // Generate moves for pieces that move along multi-move rays (B,R,Q)
     void LongMoves( MOVELIST *l, Square square, const lte *ptr );
