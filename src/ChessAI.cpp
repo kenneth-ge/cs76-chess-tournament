@@ -88,8 +88,6 @@ checkmate_info checkmate_b(int eval){
 int value[128];
 int color[128];
 
-unordered_map<ChessRules, Move> opening_book[6];
-
 void init_values(){
     value['P'] = 1000;
     value['p'] = -1000;
@@ -451,7 +449,7 @@ int max_value(ChessRules &cr, int depth, int alpha, int beta, int material, int 
         	piece_chng += value['q'];
         }
 
-    	cr.PlayMove(x);
+    	cr.PushMove(x);
     	material -= piece_chng;
     	absmaterial -= abs(piece_chng);
         int curr_eval_value = min_value(cr, depth+1, alpha, beta, material, absmaterial, max_depth + pm.depth);
@@ -521,7 +519,7 @@ int min_value(ChessRules &cr, int depth, int alpha, int beta, int material, int 
         	piece_chng += value['Q'];
         }
 
-    	cr.PlayMove(x);
+    	cr.PushMove(x);
     	material -= piece_chng;
     	absmaterial -= abs(piece_chng);
         int curr_eval_value = max_value(cr, depth+1, alpha, beta, material, absmaterial, max_depth + pm.depth);
@@ -609,7 +607,7 @@ int main() {
     		best_move = lookup_table(cr);
 
     		//failsafe
-    		if(best_move.NaturalOut(&cr) == '--'){
+    		if(best_move.NaturalOut(&cr) == "--"){
         		looked_up_successfully = false;
     		}
     	}else{
