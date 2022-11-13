@@ -2638,6 +2638,365 @@ bool ChessRules::IsInsufficientDraw( bool white_asks, DRAWTYPE &result )
     return( draw );
 }
 
+int ChessRules::CountMoves() {
+    Square square;
+
+    // Convenient spot for some asserts
+    //  Have a look at TestInternals() for this,
+    //   A ChessPositionRaw should finish with 32 bits of detail information
+    //   (see DETAIL macros, this assert() checks that)
+    assert( sizeof(ChessPositionRaw) ==
+               (offsetof(ChessPositionRaw,full_move_count) + sizeof(full_move_count) + sizeof(DETAIL))
+          );
+
+    // We also rely on Moves being 32 bits for the implementation of Move
+    //  bitwise == and != operators
+    assert( sizeof(Move) == sizeof(int32_t) );
+
+    // Clear move list
+    int count  = 0;   // set each field for each move
+
+    // Loop through all squares
+    for( square=a8; square<=h1; ++square )
+    {
+
+        // If square occupied by a piece of the right colour
+        char piece=squares[square];
+        if( (white&&IsWhite(piece)) || (!white&&IsBlack(piece)) )
+        {
+
+            // Generate moves according to the occupying piece
+            switch( piece )
+            {
+                case 'P':
+                {
+                    count += CountWhitePawnMoves( square );
+                    break;
+                }
+                case 'p':
+                {
+                    count += CountBlackPawnMoves( square );
+                    break;
+                }
+                case 'N':
+                case 'n':
+                {
+                    const lte *ptr = knight_lookup[square];
+                    count += CountShortMoves( square, ptr, NOT_SPECIAL );
+                    break;
+                }
+                case 'B':
+                case 'b':
+                {
+                    const lte *ptr = bishop_lookup[square];
+                    count += CountLongMoves( square, ptr );
+                    break;
+                }
+                case 'R':
+                case 'r':
+                {
+                    const lte *ptr = rook_lookup[square];
+                    count += CountLongMoves( square, ptr );
+                    break;
+                }
+                case 'Q':
+                case 'q':
+                {
+                    const lte *ptr = queen_lookup[square];
+                    count += CountLongMoves( square, ptr );
+                    break;
+                }
+                case 'K':
+                case 'k':
+                {
+                    count += CountKingMoves( square );
+                    break;
+                }
+            }
+        }
+    }
+}
+
+int ChessRules::CountLongMoves( Square square, const lte *ptr )
+{
+  int count = 0;
+  Square dst;
+    lte nbr_rays = *ptr++;
+    while( nbr_rays-- )
+    {
+        lte ray_len = *ptr++;
+        while( ray_len-- )
+        {
+            dst = (Square)*ptr++;
+            char piece=squares[dst];
+
+            // If square not occupied (empty), add move to list
+            if( IsEmptySquare(piece) )
+            {
+                count++;
+            }
+
+            // Else must move to end of ray
+            else
+            {
+                ptr += ray_len;
+                ray_len = 0;
+
+                // If not occupied by our man add a capture
+                if( (white&&IsBlack(piece)) || (!white&&IsWhite(piece)) )
+                {
+                    count++;
+                }
+            }
+        }
+    }
+
+    return count;
+}
+
+/****************************************************************************
+ * Generate moves for pieces that move along single move rays (N,K)
+ ****************************************************************************/
+int ChessRules::CountShortMoves( Square square,
+                                         const lte *ptr, SPECIAL special  )
+{
+  int count = 0;
+  Square dst;
+    lte nbr_moves = *ptr++;
+    while( nbr_moves-- )
+    {
+        dst = (Square)*ptr++;
+        char piece = squares[dst];
+
+        // If square not occupied (empty), add move to list
+        if( IsEmptySquare(piece) )
+        {
+           count++;
+        }
+
+        // Else if occupied by enemy man, add move to list as a capture
+        else if( (white&&IsBlack(piece)) || (!white&&IsWhite(piece)) )
+        {
+            count++;
+        }
+    }
+
+    return count;
+}
+
+/****************************************************************************
+ * Generate list of king moves
+ ****************************************************************************/
+int ChessRules::CountKingMoves( Square square )
+{
+    const lte *ptr = king_lookup[square];
+    int count = CountShortMoves( square, ptr, SPECIAL_KING_MOVE );
+
+    // White castling
+    if( square == e1 )   // king on e1 ?
+    {
+
+        // King side castling
+        if(
+            squares[g1] == ' '   &&
+            squares[f1] == ' '   &&
+            squares[h1] == 'R'   &&
+            (wking)            &&
+            !AttackedSquare(e1,false) &&
+            !AttackedSquare(f1,false) &&
+            !AttackedSquare(g1,false)
+          )
+        {
+            count++;
+        }
+
+        // Queen side castling
+        if(
+            squares[b1] == ' '         &&
+            squares[c1] == ' '         &&
+            squares[d1] == ' '         &&
+            squares[a1] == 'R'         &&
+            (wqueen)                 &&
+            !AttackedSquare(e1,false)  &&
+            !AttackedSquare(d1,false)  &&
+            !AttackedSquare(c1,false)
+          )
+        {
+            count++;
+        }
+    }
+
+    // Black castling
+    if( square == e8 )   // king on e8 ?
+    {
+
+        // King side castling
+        if(
+            squares[g8] == ' '         &&
+            squares[f8] == ' '         &&
+            squares[h8] == 'r'         &&
+            (bking)                  &&
+            !AttackedSquare(e8,true) &&
+            !AttackedSquare(f8,true) &&
+            !AttackedSquare(g8,true)
+          )
+        {
+            count++;
+        }
+
+        // Queen side castling
+        if(
+            squares[b8] == ' '         &&
+            squares[c8] == ' '         &&
+            squares[d8] == ' '         &&
+            squares[a8] == 'r'         &&
+            (bqueen)                 &&
+            !AttackedSquare(e8,true) &&
+            !AttackedSquare(d8,true) &&
+            !AttackedSquare(c8,true)
+          )
+        {
+            count++;
+        }
+    }
+
+    return count;
+}
+
+/****************************************************************************
+ * Generate list of white pawn moves
+ ****************************************************************************/
+int ChessRules::CountWhitePawnMoves( Square square )
+{
+    const lte *ptr = pawn_white_lookup[square];
+    bool promotion = (RANK(square) == '7');
+    int count = 0;
+
+    // Capture ray
+    lte nbr_moves = *ptr++;
+    while( nbr_moves-- )
+    {
+        Square dst = (Square)*ptr++;
+        if( dst == enpassant_target )
+        {
+            count++;
+        }
+        else if( IsBlack(squares[dst]) )
+        {
+            if( !promotion )
+            {
+                count++;
+            }
+            else
+            {
+
+                // Generate (under)promotions in the order (Q),N,B,R
+                //  but we no longer rely on this elsewhere as it
+                //  stops us reordering moves
+                count++;
+                count++;
+                count++;
+                count++;
+            }
+        }
+    }
+
+    // Advance ray
+    nbr_moves = *ptr++;
+    for( lte i=0; i<nbr_moves; i++ )
+    {
+        Square dst = (Square)*ptr++;
+
+        // If square occupied, end now
+        if( !IsEmptySquare(squares[dst]) )
+            break;
+        if( !promotion )
+        {
+            count++;
+        }
+        else
+        {
+
+            // Generate (under)promotions in the order (Q),N,B,R
+            //  but we no longer rely on this elsewhere as it
+            //  stops us reordering moves
+            count++;
+            count++;
+            count++;
+            count++;
+        }
+    }
+
+    return count;
+}
+
+/****************************************************************************
+ * Generate list of black pawn moves
+ ****************************************************************************/
+int ChessRules::CountBlackPawnMoves( Square square )
+{
+    const lte *ptr = pawn_black_lookup[square];
+    bool promotion = (RANK(square) == '2');
+    int count = 0;
+
+    // Capture ray
+    lte nbr_moves = *ptr++;
+    while( nbr_moves-- )
+    {
+        Square dst = (Square)*ptr++;
+        if( dst == enpassant_target )
+        {
+            count++;
+        }
+        else if( IsWhite(squares[dst]) )
+        {
+            if( !promotion )
+            {
+                count++;
+            }
+            else
+            {
+
+                // Generate (under)promotions in the order (Q),N,B,R
+                //  but we no longer rely on this elsewhere as it
+                //  stops us reordering moves
+                count++;
+                count++;
+                count++;
+                count++;
+            }
+        }
+    }
+
+    // Advance ray
+    nbr_moves = *ptr++;
+    for( int i=0; i<nbr_moves; i++ )
+    {
+        Square dst = (Square)*ptr++;
+
+        // If square occupied, end now
+        if( !IsEmptySquare(squares[dst]) )
+            break;
+        if( !promotion )
+        {
+            count++;
+        }
+        else
+        {
+
+            // Generate (under)promotions in the order (Q),N,B,R
+            //  but we no longer rely on this elsewhere as it
+            //  stops us reordering moves
+            count++;
+            count++;
+            count++;
+            count++;
+        }
+    }
+
+    return count;
+}
+
 /****************************************************************************
  * Generate a list of all possible moves in a position
  ****************************************************************************/
