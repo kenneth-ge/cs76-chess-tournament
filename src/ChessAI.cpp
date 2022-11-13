@@ -492,14 +492,16 @@ int q_min = 0, q_max = 0, q_size = 0;
 void update_table(string pos, transpos t){
 	transpos_table[pos] = t;
 
-	if(q_size > MAX_NUM_POS){
+	if(q_size >= MAX_NUM_POS){
 		transpos_table.erase(transpos_q[q_min]);
 		q_min++;
 		q_min %= MAX_NUM_POS;
+		q_size--;
 	}
 
 	transpos_q[q_max] = pos;
 	q_max++; q_max %= MAX_NUM_POS;
+	q_size++;
 }
 
 char playerchar[] = {'b', 'w'};
