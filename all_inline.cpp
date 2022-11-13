@@ -3453,12 +3453,14 @@ int ChessRules::CountMoves() {
             }
         }
     }
+
+    return count;
 }
 
 int ChessRules::CountLongMoves( Square square, const lte *ptr )
 {
-  int count = 0;
-  Square dst;
+	int count = 0;
+	Square dst;
     lte nbr_rays = *ptr++;
     while( nbr_rays-- )
     {
@@ -3498,8 +3500,8 @@ int ChessRules::CountLongMoves( Square square, const lte *ptr )
 int ChessRules::CountShortMoves( Square square,
                                          const lte *ptr, SPECIAL special  )
 {
-  int count = 0;
-  Square dst;
+	int count = 0;
+	Square dst;
     lte nbr_moves = *ptr++;
     while( nbr_moves-- )
     {
@@ -14693,11 +14695,11 @@ int max_value(ChessRules &cr, int depth, int alpha, int beta, int material, int 
 }
 
 int min_value(ChessRules &cr, int depth, int alpha, int beta, int material, int absmaterial, int max_depth){
-	num_poss_checked += 1;
+	/*num_poss_checked += 1;
 
 	if(num_poss_checked % 100000 == 0){
 		cout << num_poss_checked << endl;
-	}
+	}*/
 
     int eval = cutoff_test(cr, depth, max_depth, material, absmaterial);
 
@@ -14819,29 +14821,40 @@ int main() {
     long total_time = 0;
 
 	ChessPosition cb;
+
 	std::string str;
 	std::getline(std::cin, str);
-	bool works = cb.Forsyth(str.c_str());
-	assert(works);
-	ChessRules cr(cb);
 	Move m;
+	ChessRules cr;
+
+	if(str == "w"){
+		getline(std::cin, str);
+		bool works = cb.Forsyth(str.c_str());
+		assert(works);
+		cr = ChessRules(cb);
+	}else{
+		std::getline(std::cin, str);
+
+		m.TerseIn(&cr, str.c_str());
+		cr.PlayMove(m);
+	}
 
 	we_are_white = cr.white;
 
-	display_position(cr, "Starting Position");
+	//display_position(cr, "Starting Position");
 
     while(true){
     	Move best_move;
 
-    	cout << "full move count " << cr.full_move_count << endl;
+    	//cout << "full move count " << cr.full_move_count << endl;
 
     	if(cr.full_move_count <= 3){
     		best_move = lookup_table(cr);
 
     		//failsafe
     		if(best_move.NaturalOut(&cr) == "--"){
-    			cout << best_move.TerseOut() << endl;
-    			cout << "not valid " << best_move.NaturalOut(&cr) << endl;
+    			//cout << best_move.TerseOut() << endl;
+    			//cout << "not valid " << best_move.NaturalOut(&cr) << endl;
         		looked_up_successfully = false;
     		}
     	}else{
@@ -14861,13 +14874,14 @@ int main() {
 			total_time += time;
     	}
 
-		cout << "time " << time << endl;
-		cout << "total time " << total_time << endl;
+		//cout << "time " << time << endl;
+		//cout << "total time " << total_time << endl;
 
-		cout << "max depth " << max_depth_reached << endl;
+		//cout << "max depth " << max_depth_reached << endl;
 
-		cout << "terse out " << best_move.TerseOut() << endl;
-		cout << "natural out " << best_move.NaturalOut(&cr) << endl;
+		cout << best_move.TerseOut() << endl;
+		cout << flush;
+		//cout << "natural out " << best_move.NaturalOut(&cr) << endl;
 		cr.PlayMove(best_move);
 
 		bool okay = false;

@@ -2716,6 +2716,8 @@ int ChessRules::CountMoves() {
             }
         }
     }
+
+    return count;
 }
 
 int ChessRules::CountLongMoves( Square square, const lte *ptr )

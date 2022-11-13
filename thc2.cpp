@@ -2715,12 +2715,14 @@ int ChessRules::CountMoves() {
             }
         }
     }
+
+    return count;
 }
 
 int ChessRules::CountLongMoves( Square square, const lte *ptr )
 {
-  int count = 0;
-  Square dst;
+	int count = 0;
+	Square dst;
     lte nbr_rays = *ptr++;
     while( nbr_rays-- )
     {
@@ -2760,8 +2762,8 @@ int ChessRules::CountLongMoves( Square square, const lte *ptr )
 int ChessRules::CountShortMoves( Square square,
                                          const lte *ptr, SPECIAL special  )
 {
-  int count = 0;
-  Square dst;
+	int count = 0;
+	Square dst;
     lte nbr_moves = *ptr++;
     while( nbr_moves-- )
     {
