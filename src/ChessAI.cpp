@@ -339,7 +339,6 @@ int evaluate_mid(ChessRules &board, int depth, int material, int absmaterial){
 }
 
 Move move_history[MAXMOVES];
-int castled[MAXMOVES];
 
 int evaluate_early(ChessRules &board, int depth, int material, int absmaterial){
 	int starting = evaluate_mid(board, depth, material, absmaterial);
@@ -347,8 +346,20 @@ int evaluate_early(ChessRules &board, int depth, int material, int absmaterial){
 	if(eval_mid_terminal)
 		return starting;
 
-	int white_castled = castled[depth] & 1, black_castled = castled[depth] & 2;
+	int white_castled = 0, black_castled = 0;
 
+	for(int i = depth - 1; i >= 0; i--){
+		switch(move_history[i].special){
+		case SPECIAL_WK_CASTLING:
+		case SPECIAL_WQ_CASTLING:
+			white_castled = 1;
+			break;
+		case SPECIAL_BK_CASTLING:
+		case SPECIAL_BQ_CASTLING:
+			black_castled = 1;
+			break;
+		}
+	}
 	if(board.wking_square != e1 && !white_castled){
 		starting -= 0.65 * value['P'];
 	}
@@ -497,9 +508,6 @@ int max_value(ChessRules &cr, int depth, int alpha, int beta, int material, int 
 
     	cr.PushMove(x);
     	move_history[depth] = x;
-    	castled[depth] |= (x.special == SPECIAL_WK_CASTLING || x.special == SPECIAL_WQ_CASTLING ? 1 : 0);
-    	castled[depth] |= (x.special == SPECIAL_BK_CASTLING || x.special == SPECIAL_BQ_CASTLING ? 2 : 0);
-    	castled[depth + 1] = castled[depth];
 
     	material -= piece_chng;
     	absmaterial -= abs(piece_chng);
@@ -572,9 +580,6 @@ int min_value(ChessRules &cr, int depth, int alpha, int beta, int material, int 
 
     	cr.PushMove(x);
     	move_history[depth] = x;
-    	castled[depth] |= (x.special == SPECIAL_WK_CASTLING || x.special == SPECIAL_WQ_CASTLING ? 1 : 0);
-    	castled[depth] |= (x.special == SPECIAL_BK_CASTLING || x.special == SPECIAL_BQ_CASTLING ? 2 : 0);
-    	castled[depth + 1] = castled[depth];
 
     	material -= piece_chng;
     	absmaterial -= abs(piece_chng);
