@@ -476,6 +476,34 @@ Move lastconsidered;
 //vector<Move> moves;
 int num_poss_checked;
 
+struct transpos {
+	int start_depth;
+	int eval;
+	Move best_move;
+};
+
+#define MAX_NUM_POS 1000000
+#define USE_TRANSPOS
+
+unordered_map<string, transpos> transpos_table;
+string transpos_q[MAX_NUM_POS];
+int q_min = 0, q_max = 0, q_size = 0;
+
+void update_table(string pos, transpos t){
+	transpos_table[pos] = t;
+
+	if(q_size > MAX_NUM_POS){
+		transpos_table.erase(transpos_q[q_min]);
+		q_min++;
+		q_min %= MAX_NUM_POS;
+	}
+
+	transpos_q[q_max] = pos;
+	q_max++; q_max %= MAX_NUM_POS;
+}
+
+char playerchar[] = {'b', 'w'};
+
 int max_value(ChessRules &cr, int depth, int alpha, int beta, int material, int absmaterial, int max_depth){
 	num_poss_checked += 1;
 
@@ -484,6 +512,23 @@ int max_value(ChessRules &cr, int depth, int alpha, int beta, int material, int 
     if(stop){
         return eval;
     }
+
+#ifdef USE_TRANSPOS
+    string pos(65, '-');
+    for(int i = 0; i < 64; i++){
+    	pos[i] = cr.squares[i];
+    }
+    pos[64] = playerchar[cr.white];
+
+    if(transpos_table.find(pos) != transpos_table.end()){
+    	transpos t = transpos_table[pos];
+
+    	if(t.start_depth <= depth){
+    		lastconsidered = t.best_move;
+    		return t.eval;
+    	}
+    }
+#endif
 
     //do not use eval after cutoff_test lol
     //moves.clear(); check.clear(); mate.clear(); stalemate.clear();
@@ -540,6 +585,10 @@ int max_value(ChessRules &cr, int depth, int alpha, int beta, int material, int 
     //best_move == null should not happen
     assert(best_eval_value > -INF);
 
+#ifdef USE_TRANSPOS
+    update_table(pos, {depth, best_eval_value, best_move});
+#endif
+
     lastconsidered = best_move;
     return best_eval_value;
 }
@@ -556,6 +605,23 @@ int min_value(ChessRules &cr, int depth, int alpha, int beta, int material, int 
     if(stop){
         return eval;
     }
+
+#ifdef USE_TRANSPOS
+    string pos(65, '-');
+	for(int i = 0; i < 64; i++){
+		pos[i] = cr.squares[i];
+	}
+	pos[64] = playerchar[cr.white];
+
+	if(transpos_table.find(pos) != transpos_table.end()){
+		transpos t = transpos_table[pos];
+
+		if(t.start_depth <= depth){
+			lastconsidered = t.best_move;
+			return t.eval;
+		}
+	}
+#endif
 
     cr.GenLegalMoveList(&moves, check, mate, stalemate);
     int num_moves = moves.count;
@@ -611,6 +677,10 @@ int min_value(ChessRules &cr, int depth, int alpha, int beta, int material, int 
 
     assert(best_eval_value < INF);
     //assert(best_move.NaturalOut(&cr) != "--");
+
+#ifdef USE_TRANSPOS
+    update_table(pos, {depth, best_eval_value, best_move});
+#endif
 
     lastconsidered = best_move;
     return best_eval_value;
