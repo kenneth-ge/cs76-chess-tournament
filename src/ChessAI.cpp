@@ -384,12 +384,12 @@ int cutoff_test(ChessRules &board, int depth, int max_depth, int material, int a
 	max_depth_reached = max(max_depth_reached, depth);
 
 	//Past actual max depth
-	if(MAX_DEPTH - 10 * depth <= 0){
+	if(MAX_DEPTH - 10 * depth < 0){
 		stop = true;
 		return evaluate(board, depth, material, absmaterial);
 	}
 
-	if(alt_max_depth - 10 * depth <= 0){
+	if(alt_max_depth - 10 * depth < 0){
 		stop = true;
 		return evaluate(board, depth, material, absmaterial);
 	}
@@ -404,7 +404,7 @@ int cutoff_test(ChessRules &board, int depth, int max_depth, int material, int a
 
     int remaining = max_depth - 10 * depth;
 
-    if(remaining <= 0){
+    if(remaining < 0){
     	stop = true;
         return evaluate(board, depth, material, absmaterial);
     }else if(remaining < 10){ //0 to 9 -- 5 for half
