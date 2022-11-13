@@ -224,6 +224,7 @@ int loc[8][2];
 
 MOVELIST countmobility;
 bool eval_mid_terminal = false;
+DRAWTYPE draw_type;
 
 int evaluate_mid(ChessRules &board, int depth, int material, int absmaterial){
     TERMINAL eval_final_position;
@@ -239,6 +240,11 @@ int evaluate_mid(ChessRules &board, int depth, int material, int absmaterial){
                 return 0;
         }
     }
+
+    if(board.GetRepetitionCount() >= 3 || board.IsInsufficientDraw(true, draw_type) || board.IsInsufficientDraw(false, draw_type)){
+    	return 0;
+    }
+
     eval_mid_terminal = false;
 
     int eval = material;
@@ -400,6 +406,11 @@ int cutoff_test(ChessRules &board, int depth, int max_depth, int material, int a
     if(eval_final_position != NOT_TERMINAL){
     	stop = true;
     	return evaluate(board, depth, material, absmaterial);
+    }
+
+    if(board.GetRepetitionCount() >= 3 || board.IsInsufficientDraw(true, draw_type) || board.IsInsufficientDraw(false, draw_type)){
+    	stop = true;
+    	return 0;
     }
 
     int remaining = max_depth - 10 * depth;
