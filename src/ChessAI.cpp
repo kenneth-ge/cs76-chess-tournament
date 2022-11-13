@@ -410,7 +410,12 @@ int cutoff_test(ChessRules &board, int depth, int max_depth, int material, int a
     }else if(remaining < 10){ //0 to 9 -- 5 for half
         int randbool = rand() % 10; //0 to 9
         stop = remaining > randbool;
-        return evaluate(board, depth, material, absmaterial);
+
+        if(!stop)
+        	return 0;
+        else{
+        	return evaluate(board, depth, material, absmaterial);
+        }
     }
 
     stop = false;
