@@ -67,7 +67,7 @@ void display_position( thc::ChessRules &cr, const std::string &description )
 const int MAX_DEPTH = 75; // no longer const because of our mate in X guarantee
 const int MAX_DEPTH_NUM = MAX_DEPTH / 10 + 1;
 const int DEFAULT_MAX_DEPTH = 45;
-int alt_max_depth = 75;
+int alt_max_depth = 75, alt_min_depth = 0;
 int DEFAULT_MATERIAL = 0;
 
 bool we_are_white;
@@ -413,6 +413,11 @@ int cutoff_test(ChessRules &board, int depth, int max_depth, int material, int a
     	return 0;
     }
 
+    if(10 * depth < alt_min_depth){
+    	stop = false;
+    	return 0;
+    }
+
     int remaining = max_depth - 10 * depth;
 
     if(remaining <= 0){
@@ -587,6 +592,7 @@ int max_value(ChessRules &cr, int depth, int alpha, int beta, int material, int 
             best_move = x;
         }
         if(best_eval_value >= beta){
+        	alt_max_depth = alt_max_depth_before;
         	lastconsidered = best_move;
             return best_eval_value;
         }
@@ -681,6 +687,7 @@ int min_value(ChessRules &cr, int depth, int alpha, int beta, int material, int 
         }
         if(best_eval_value <= alpha){
         	lastconsidered = best_move;
+        	alt_max_depth = alt_max_depth_before;
             return best_eval_value;
         }
         beta = min(beta, curr_eval_value);
@@ -707,21 +714,24 @@ thc::Move choose_move(ChessRules &board){
     if(board.white){
     	if(mate_in_x != -1){
     		mate_in_x--;
-    		alt_max_depth = mate_in_x;
+    		alt_max_depth = mate_in_x * 10;
+    		alt_min_depth = alt_max_depth;
     	}
         int eval = max_value(board, 0, -INF, INF, material, absmaterial, DEFAULT_MAX_DEPTH);
         if(eval >= CHECKMATE - 5){
-        	mate_in_x = CHECKMATE - eval;
+        	mate_in_x = CHECKMATE - eval + 1;
         }
         return lastconsidered;
     }else{
     	if(mate_in_x != -1){
     		mate_in_x--;
-    		alt_max_depth = mate_in_x;
+    		alt_max_depth = mate_in_x * 10;
+    		alt_min_depth = alt_max_depth;
     	}
+
     	int eval = min_value(board, 0, -INF, INF, material, absmaterial, DEFAULT_MAX_DEPTH);
         if(eval <= -(CHECKMATE - 5)){
-        	mate_in_x = CHECKMATE + eval;
+        	mate_in_x = CHECKMATE + eval + 1;
         }
         return lastconsidered;
     }
