@@ -833,7 +833,7 @@ int main() {
 		
 		// if remaining time is 1 min or so also we have to reduce the depth
 		if(time_remaining <= 20) {
-			starting_depth = 2;
+			starting_depth = 1;
 		}
 
     	if(!looked_up_successfully){
