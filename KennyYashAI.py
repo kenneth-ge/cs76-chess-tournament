@@ -22,7 +22,11 @@ class KennyYashAI():
         self.restart = False
 
     # max_val for white, min_val for black
-    def choose_move(self, board) -> chess.Move:
+    """
+    time is a tuple which contains time left of white and black in seconds
+    (whiteTimeLeft, blackTimeLeft)
+    """
+    def choose_move(self, board, time) -> chess.Move:
         if self.restart or (self.white and not self.did_move):
             if self.restart:
                 print('new input fen', board.fen())
