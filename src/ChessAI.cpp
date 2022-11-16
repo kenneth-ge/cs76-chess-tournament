@@ -778,13 +778,7 @@ int main() {
 			Move m;
 			bool okay = m.TerseIn(&cr, str.c_str());
 			cr.PlayMove(m);
-
-			if(!okay){
-				cout << "move not okay" << endl;
-			}
 		}
-
-		display_position(cr, "after p");
 	}else{
 		std::getline(std::cin, str);
 
