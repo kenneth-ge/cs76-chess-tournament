@@ -714,6 +714,9 @@ thc::Move choose_move(ChessRules &board, int material, int absmaterial, int star
     		mate_in_x--;
     		alt_max_depth = mate_in_x * 10;
     		alt_min_depth = alt_max_depth;
+
+    		alt_min_depth = max(alt_min_depth, 15);
+    		alt_max_depth = max(alt_max_depth, 15);
     	}
         int eval = max_value(board, starting_depth, -INF, INF, material, absmaterial, DEFAULT_MAX_DEPTH);
         if(eval >= CHECKMATE - 5){
@@ -725,6 +728,9 @@ thc::Move choose_move(ChessRules &board, int material, int absmaterial, int star
     		mate_in_x--;
     		alt_max_depth = mate_in_x * 10;
     		alt_min_depth = alt_max_depth;
+
+    		alt_min_depth = max(alt_min_depth, 15);
+    		alt_max_depth = max(alt_max_depth, 15);
     	}
 
     	int eval = min_value(board, starting_depth, -INF, INF, material, absmaterial, DEFAULT_MAX_DEPTH);
@@ -735,7 +741,10 @@ thc::Move choose_move(ChessRules &board, int material, int absmaterial, int star
     }
 }
 
+int max_num_seconds = 0;
+
 int main() {
+
     init_values();
 
     long total_time = 0;
@@ -746,6 +755,12 @@ int main() {
 	std::getline(std::cin, str);
 	Move m;
 	ChessRules cr;
+
+	{
+		string seconds;
+		getline(cin, seconds);
+		max_num_seconds = stoi(seconds);
+	}
 
 	if(str == "w"){
 		getline(std::cin, str);
@@ -769,6 +784,9 @@ int main() {
 
 		m.TerseIn(&cr, str.c_str());
 		cr.PlayMove(m);
+
+		//read time remaining
+		getline(cin, str);
 	}
 
 	we_are_white = cr.white;
@@ -782,6 +800,8 @@ int main() {
 		absmaterial += abs(value[cr.squares[i]]);
 		material += value[cr.squares[i]];
 	}
+
+	int time_remaining = 300;
 
     while(true){
     	Move best_move;
@@ -849,6 +869,9 @@ int main() {
 			if(!okay){
 				cout << "not okay lol" << endl;
 			}
+
+			getline(cin, str);
+			time_remaining = stoi(str);
 		}
 		cr.PlayMove(m);
 

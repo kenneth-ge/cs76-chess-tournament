@@ -14796,14 +14796,14 @@ int min_value(ChessRules &cr, int depth, int alpha, int beta, int material, int 
 
 int mate_in_x = -1;
 
-thc::Move choose_move(ChessRules &board, int material, int absmaterial){
+thc::Move choose_move(ChessRules &board, int material, int absmaterial, int starting_depth){
     if(board.white){
     	if(mate_in_x != -1){
     		mate_in_x--;
     		alt_max_depth = mate_in_x * 10;
     		alt_min_depth = alt_max_depth;
     	}
-        int eval = max_value(board, 0, -INF, INF, material, absmaterial, DEFAULT_MAX_DEPTH);
+        int eval = max_value(board, starting_depth, -INF, INF, material, absmaterial, DEFAULT_MAX_DEPTH);
         if(eval >= CHECKMATE - 5){
         	mate_in_x = CHECKMATE - eval + 1;
         }
@@ -14815,7 +14815,7 @@ thc::Move choose_move(ChessRules &board, int material, int absmaterial){
     		alt_min_depth = alt_max_depth;
     	}
 
-    	int eval = min_value(board, 0, -INF, INF, material, absmaterial, DEFAULT_MAX_DEPTH);
+    	int eval = min_value(board, starting_depth, -INF, INF, material, absmaterial, DEFAULT_MAX_DEPTH);
         if(eval <= -(CHECKMATE - 5)){
         	mate_in_x = CHECKMATE + eval + 1;
         }
@@ -14823,7 +14823,10 @@ thc::Move choose_move(ChessRules &board, int material, int absmaterial){
     }
 }
 
+int max_num_seconds = 0;
+
 int main() {
+
     init_values();
 
     long total_time = 0;
@@ -14834,6 +14837,12 @@ int main() {
 	std::getline(std::cin, str);
 	Move m;
 	ChessRules cr;
+
+	{
+		string seconds;
+		getline(cin, seconds);
+		max_num_seconds = stoi(seconds);
+	}
 
 	if(str == "w"){
 		getline(std::cin, str);
@@ -14857,6 +14866,9 @@ int main() {
 
 		m.TerseIn(&cr, str.c_str());
 		cr.PlayMove(m);
+
+		//read time remaining
+		getline(cin, str);
 	}
 
 	we_are_white = cr.white;
@@ -14870,6 +14882,8 @@ int main() {
 		absmaterial += abs(value[cr.squares[i]]);
 		material += value[cr.squares[i]];
 	}
+
+	int time_remaining = 300;
 
     while(true){
     	Move best_move;
@@ -14893,11 +14907,27 @@ int main() {
     		evaluate = evaluate_mid;
     	}
 
+		// searching at smaller depth for the first 5 moves after the lookup table
+		int starting_depth = 0;
+		if(cr.full_move_count <= 8) {
+			starting_depth = 2;
+		}
+
+		// int our_remaining_time = cr.white == 1 ? str_list[1] : str_list[2];
+
+		
+		/*
+		// if remaining time is 1 min or so also we have to reduce the depth
+		if(our_remaining_time <= 60) {
+			starting_depth = 2;
+		}
+		*/
+
     	if(!looked_up_successfully){
 			max_depth_reached = 0;
 
 			start_timer();
-			best_move = choose_move(cr, material, absmaterial);
+			best_move = choose_move(cr, material, absmaterial, starting_depth);
 			long time = end_timer();
 			total_time += time;
     	}
@@ -14921,6 +14951,9 @@ int main() {
 			if(!okay){
 				cout << "not okay lol" << endl;
 			}
+
+			getline(cin, str);
+			time_remaining = stoi(str);
 		}
 		cr.PlayMove(m);
 
