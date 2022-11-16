@@ -14496,7 +14496,7 @@ int cutoff_test(ChessRules &board, int depth, int max_depth, int material, int a
     	return evaluate(board, depth, material, absmaterial);
     }
 
-    if(board.GetRepetitionCount() >= 3 || board.IsInsufficientDraw(true, draw_type) || board.IsInsufficientDraw(false, draw_type)){
+    if(board.GetRepetitionCount() >= 5 || board.IsInsufficientDraw(true, draw_type) || board.IsInsufficientDraw(false, draw_type)){
     	stop = true;
     	return 0;
     }
@@ -14802,6 +14802,9 @@ thc::Move choose_move(ChessRules &board, int material, int absmaterial, int star
     		mate_in_x--;
     		alt_max_depth = mate_in_x * 10;
     		alt_min_depth = alt_max_depth;
+
+    		alt_min_depth = max(alt_min_depth, 15);
+    		alt_max_depth = max(alt_max_depth, 15);
     	}
         int eval = max_value(board, starting_depth, -INF, INF, material, absmaterial, DEFAULT_MAX_DEPTH);
         if(eval >= CHECKMATE - 5){
@@ -14813,6 +14816,9 @@ thc::Move choose_move(ChessRules &board, int material, int absmaterial, int star
     		mate_in_x--;
     		alt_max_depth = mate_in_x * 10;
     		alt_min_depth = alt_max_depth;
+
+    		alt_min_depth = max(alt_min_depth, 15);
+    		alt_max_depth = max(alt_max_depth, 15);
     	}
 
     	int eval = min_value(board, starting_depth, -INF, INF, material, absmaterial, DEFAULT_MAX_DEPTH);
@@ -14858,9 +14864,15 @@ int main() {
 			std::getline(std::cin, str);
 
 			Move m;
-			m.TerseIn(&cr, str.c_str());
+			bool okay = m.TerseIn(&cr, str.c_str());
 			cr.PlayMove(m);
+
+			if(!okay){
+				cout << "move not okay" << endl;
+			}
 		}
+
+		display_position(cr, "after p");
 	}else{
 		std::getline(std::cin, str);
 

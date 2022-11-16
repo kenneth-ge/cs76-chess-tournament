@@ -68,19 +68,44 @@ class KennyYashAI():
                 self.b.stdin.write(bytes(str(self.total_time[0]) + '\r\n', encoding='ascii'))
             else:
                 self.b.stdin.write(bytes(str(self.total_time[1]) + '\r\n', encoding='ascii'))
+
+            print('this is what i"m writing')
             self.b.stdin.write(bytes(str(len(board.move_stack)) + '\r\n', encoding='ascii'))
+            print(len(board.move_stack))
             for move in board.move_stack:
                 self.b.stdin.write(bytes(move.uci() + '\r\n', encoding='ascii'))
+                print(move.uci())
+            print('end what i"m writing')
 
             self.b.stdin.flush()
             line = self.b.stdout.readline().decode(encoding='ascii')
 
             move = chess.Move.from_uci(line.strip())
 
+            print(line.strip())
             print('new move after restarting', move)
 
+            # fen fallback
             if not board.is_legal(move):
                 self.need_reset = True
-                return list(board.legal_moves)[0]
+                self.b.kill()
+                self.b = Popen(["./a"], stdout=PIPE, stdin=PIPE, stderr=PIPE)
+                self.b.stdin.write(b'w\r\n')
+                self.b.stdin.write(bytes(str(self.total_time[0]) + '\r\n', encoding='ascii'))
+                self.b.stdin.write(bytes(board.fen() + '\r\n', encoding='ascii'))
+                self.b.stdin.flush()
+
+                line = self.b.stdout.readline().decode(encoding='ascii')
+
+                move = chess.Move.from_uci(line.strip())
+
+                if board.is_legal(move):
+                    self.need_reset = False
+                    return move
+
+                self.need_reset = True
+
+                # random move fallback
+                return random.choice(list(board.legal_moves))
 
         return move
