@@ -38,7 +38,7 @@ class KennyYashAI():
 
         if self.restart or (self.white and not self.did_move):
             if self.restart:
-                print('new input fen', board.fen())
+                #print('new input fen', board.fen())
                 self.b.stdin.write(bytes(board.fen() + '\r\n', encoding='ascii'))
                 self.restart = False
             else:
@@ -57,10 +57,10 @@ class KennyYashAI():
         move = chess.Move.from_uci(line.strip())
 
         if not board.is_legal(move) or self.need_reset:
-            print('-------')
-            print(board.fen())
-            print(move)
-            print('restart')
+            #print('-------')
+            #print(board.fen())
+            #print(move)
+            #print('restart')
             self.b.kill()
             self.b = Popen(["./a"], stdout=PIPE, stdin=PIPE, stderr=PIPE)
             self.b.stdin.write(b'p\r\n')
@@ -69,21 +69,21 @@ class KennyYashAI():
             else:
                 self.b.stdin.write(bytes(str(self.total_time[1]) + '\r\n', encoding='ascii'))
 
-            print('this is what i"m writing')
+            #print('this is what i"m writing')
             self.b.stdin.write(bytes(str(len(board.move_stack)) + '\r\n', encoding='ascii'))
-            print(len(board.move_stack))
+            #print(len(board.move_stack))
             for move in board.move_stack:
                 self.b.stdin.write(bytes(move.uci() + '\r\n', encoding='ascii'))
-                print(move.uci())
-            print('end what i"m writing')
+                #print(move.uci())
+            #print('end what i"m writing')
 
             self.b.stdin.flush()
             line = self.b.stdout.readline().decode(encoding='ascii')
 
             move = chess.Move.from_uci(line.strip())
 
-            print(line.strip())
-            print('new move after restarting', move)
+            #print(line.strip())
+            #print('new move after restarting', move)
 
             # fen fallback
             if not board.is_legal(move):
