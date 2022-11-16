@@ -20,6 +20,7 @@ class KennyYashAI():
 
         self.did_move = False
         self.restart = False
+        self.need_reset = False
 
     # max_val for white, min_val for black
     """
@@ -27,7 +28,7 @@ class KennyYashAI():
     (whiteTimeLeft, blackTimeLeft)
     """
     def choose_move(self, board, time) -> chess.Move:
-        if board.fullmove_clock <= 1:
+        if board.fullmove_number <= 1:
             self.total_time = time
             if self.white:
                 self.b.stdin.write(bytes(str(time[0]) + '\r\n', encoding='ascii'))
@@ -45,14 +46,17 @@ class KennyYashAI():
                 self.did_move = True
         else:
             latest_move = board.peek()
-            print('latest move', latest_move)
             self.b.stdin.write(bytes(latest_move.uci() + '\r\n', encoding='ascii'))
+            if self.white:
+                self.b.stdin.write(bytes(str(time[0]) + '\r\n', encoding='ascii'))
+            else:
+                self.b.stdin.write(bytes(str(time[1]) + '\r\n', encoding='ascii'))
         self.b.stdin.flush()
         line = self.b.stdout.readline().decode(encoding='ascii')
 
         move = chess.Move.from_uci(line.strip())
 
-        if not board.is_legal(move):
+        if not board.is_legal(move) or self.need_reset:
             print('-------')
             print(board.fen())
             print(move)
@@ -61,9 +65,9 @@ class KennyYashAI():
             self.b = Popen(["./a"], stdout=PIPE, stdin=PIPE, stderr=PIPE)
             self.b.stdin.write(b'p\r\n')
             if self.white:
-                self.b.stdin.write(bytes(str(time[0]) + '\r\n', encoding='ascii'))
+                self.b.stdin.write(bytes(str(self.total_time[0]) + '\r\n', encoding='ascii'))
             else:
-                self.b.stdin.write(bytes(str(time[1]) + '\r\n', encoding='ascii'))
+                self.b.stdin.write(bytes(str(self.total_time[1]) + '\r\n', encoding='ascii'))
             self.b.stdin.write(bytes(str(len(board.move_stack)) + '\r\n', encoding='ascii'))
             for move in board.move_stack:
                 self.b.stdin.write(bytes(move.uci() + '\r\n', encoding='ascii'))
@@ -72,5 +76,11 @@ class KennyYashAI():
             line = self.b.stdout.readline().decode(encoding='ascii')
 
             move = chess.Move.from_uci(line.strip())
+
+            print('new move after restarting', move)
+
+            if not board.is_legal(move):
+                self.need_reset = True
+                return list(board.legal_moves)[0]
 
         return move
