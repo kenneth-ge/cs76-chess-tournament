@@ -14152,10 +14152,10 @@ void display_position( thc::ChessRules &cr, const std::string &description )
 #define CHECKMATE (INF / 2)
 
 // change this later on
-const int MAX_DEPTH = 85; // no longer const because of our mate in X guarantee
+const int MAX_DEPTH = 95; // no longer const because of our mate in X guarantee
 const int MAX_DEPTH_NUM = MAX_DEPTH / 10 + 1;
-const int DEFAULT_MAX_DEPTH = 45;
-int alt_max_depth = 85, alt_min_depth = 0;
+const int DEFAULT_MAX_DEPTH = 50;
+int alt_max_depth = 95, alt_min_depth = 0;
 int DEFAULT_MATERIAL = 0;
 
 bool we_are_white;
@@ -14921,7 +14921,7 @@ int main() {
 		
 		// if remaining time is 1 min or so also we have to reduce the depth
 		if(time_remaining <= 20) {
-			starting_depth = 2;
+			starting_depth = 1;
 		}
 
     	if(!looked_up_successfully){
