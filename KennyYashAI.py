@@ -38,6 +38,7 @@ class KennyYashAI():
         else:
             latest_move = board.peek()
             print('latest move', latest_move)
+            # self.b.stdin.write(bytes(latest_move.uci() + ',' + str(time[0]) + ',' + str(time[1]) + '\r\n', encoding='ascii'))
             self.b.stdin.write(bytes(latest_move.uci() + '\r\n', encoding='ascii'))
         self.b.stdin.flush()
         line = self.b.stdout.readline().decode(encoding='ascii')
