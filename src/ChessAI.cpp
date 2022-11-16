@@ -408,7 +408,7 @@ int cutoff_test(ChessRules &board, int depth, int max_depth, int material, int a
     	return evaluate(board, depth, material, absmaterial);
     }
 
-    if(board.GetRepetitionCount() >= 3 || board.IsInsufficientDraw(true, draw_type) || board.IsInsufficientDraw(false, draw_type)){
+    if(board.GetRepetitionCount() >= 5 || board.IsInsufficientDraw(true, draw_type) || board.IsInsufficientDraw(false, draw_type)){
     	stop = true;
     	return 0;
     }
@@ -776,9 +776,15 @@ int main() {
 			std::getline(std::cin, str);
 
 			Move m;
-			m.TerseIn(&cr, str.c_str());
+			bool okay = m.TerseIn(&cr, str.c_str());
 			cr.PlayMove(m);
+
+			if(!okay){
+				cout << "move not okay" << endl;
+			}
 		}
+
+		display_position(cr, "after p");
 	}else{
 		std::getline(std::cin, str);
 
