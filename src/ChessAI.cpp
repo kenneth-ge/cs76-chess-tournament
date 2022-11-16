@@ -64,10 +64,10 @@ void display_position( thc::ChessRules &cr, const std::string &description )
 #define CHECKMATE (INF / 2)
 
 // change this later on
-const int MAX_DEPTH = 75; // no longer const because of our mate in X guarantee
+const int MAX_DEPTH = 85; // no longer const because of our mate in X guarantee
 const int MAX_DEPTH_NUM = MAX_DEPTH / 10 + 1;
 const int DEFAULT_MAX_DEPTH = 45;
-int alt_max_depth = 75, alt_min_depth = 0;
+int alt_max_depth = 85, alt_min_depth = 0;
 int DEFAULT_MATERIAL = 0;
 
 bool we_are_white;
@@ -801,7 +801,7 @@ int main() {
 		material += value[cr.squares[i]];
 	}
 
-	int time_remaining = 300;
+	int time_remaining = max_num_seconds;
 
     while(true){
     	Move best_move;
@@ -827,19 +827,14 @@ int main() {
 
 		// searching at smaller depth for the first 5 moves after the lookup table
 		int starting_depth = 0;
-		if(cr.full_move_count <= 8) {
+		if(cr.full_move_count <= 6) {
 			starting_depth = 2;
 		}
-
-		// int our_remaining_time = cr.white == 1 ? str_list[1] : str_list[2];
-
 		
-		/*
 		// if remaining time is 1 min or so also we have to reduce the depth
-		if(our_remaining_time <= 60) {
+		if(time_remaining <= 20) {
 			starting_depth = 2;
 		}
-		*/
 
     	if(!looked_up_successfully){
 			max_depth_reached = 0;
@@ -850,14 +845,8 @@ int main() {
 			total_time += time;
     	}
 
-		//cout << "time " << time << endl;
-		//cout << "total time " << total_time << endl;
-
-		//cout << "max depth " << max_depth_reached << endl;
-
 		cout << best_move.TerseOut() << endl;
 		cout << flush;
-		//cout << "natural out " << best_move.NaturalOut(&cr) << endl;
 		cr.PlayMove(best_move);
 
 		bool okay = false;
@@ -883,28 +872,6 @@ int main() {
 			material += value[cr.squares[i]];
 		}
     }
-
-	//cr.PlayMove(best_move);
-	//display_position(cr, "Next Move");
-
-
-	/*while(true){
-		Move best_move = choose_move(cr);
-
-		if(best_move.NaturalOut(&cr) == "--"){
-			break;
-		}
-
-		cout << "terse out " << best_move.TerseOut() << endl;
-		cout << "natural out " << best_move.NaturalOut(&cr) << endl;
-
-		cr.PlayMove(best_move);
-		display_position(cr, "Next Move");
-	}
-
-	cout << "GAME OVER" << endl;
-
-	cout << "max depth reached " << max_depth_reached << endl;*/
 
 	return 0;
 }
