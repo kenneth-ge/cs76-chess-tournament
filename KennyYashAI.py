@@ -22,7 +22,11 @@ class KennyYashAI():
         self.restart = False
 
     # max_val for white, min_val for black
-    def choose_move(self, board) -> chess.Move:
+    """
+    time is a tuple which contains time left of white and black in seconds
+    (whiteTimeLeft, blackTimeLeft)
+    """
+    def choose_move(self, board, time) -> chess.Move:
         if self.restart or (self.white and not self.did_move):
             if self.restart:
                 print('new input fen', board.fen())
@@ -34,6 +38,7 @@ class KennyYashAI():
         else:
             latest_move = board.peek()
             print('latest move', latest_move)
+            # self.b.stdin.write(bytes(latest_move.uci() + ',' + str(time[0]) + ',' + str(time[1]) + '\r\n', encoding='ascii'))
             self.b.stdin.write(bytes(latest_move.uci() + '\r\n', encoding='ascii'))
         self.b.stdin.flush()
         line = self.b.stdout.readline().decode(encoding='ascii')
