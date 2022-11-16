@@ -708,9 +708,7 @@ int min_value(ChessRules &cr, int depth, int alpha, int beta, int material, int 
 
 int mate_in_x = -1;
 
-thc::Move choose_move(ChessRules &board){
-	int material = 0;
-	int absmaterial = DEFAULT_MATERIAL;
+thc::Move choose_move(ChessRules &board, int material, int absmaterial){
     if(board.white){
     	if(mate_in_x != -1){
     		mate_in_x--;
@@ -754,6 +752,18 @@ int main() {
 		bool works = cb.Forsyth(str.c_str());
 		assert(works);
 		cr = ChessRules(cb);
+	}else if(str == "p"){
+		getline(std::cin, str);
+
+		int n = stoi(str);
+
+		for(int i = 0; i < n; i++){
+			std::getline(std::cin, str);
+
+			Move m;
+			m.TerseIn(&cr, str.c_str());
+			cr.PlayMove(m);
+		}
 	}else{
 		std::getline(std::cin, str);
 
@@ -764,6 +774,14 @@ int main() {
 	we_are_white = cr.white;
 
 	//display_position(cr, "Starting Position");
+
+	int absmaterial = 0;
+	int material = 0;
+
+	for(int i = 0; i < 64; i++){
+		absmaterial += abs(value[cr.squares[i]]);
+		material += value[cr.squares[i]];
+	}
 
     while(true){
     	Move best_move;
@@ -791,7 +809,7 @@ int main() {
 			max_depth_reached = 0;
 
 			start_timer();
-			best_move = choose_move(cr);
+			best_move = choose_move(cr, material, absmaterial);
 			long time = end_timer();
 			total_time += time;
     	}
@@ -817,6 +835,14 @@ int main() {
 			}
 		}
 		cr.PlayMove(m);
+
+		absmaterial = 0;
+		material = 0;
+
+		for(int i = 0; i < 64; i++){
+			absmaterial += abs(value[cr.squares[i]]);
+			material += value[cr.squares[i]];
+		}
     }
 
 	//cr.PlayMove(best_move);

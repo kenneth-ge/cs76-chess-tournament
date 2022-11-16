@@ -1,6 +1,6 @@
 '''
 Written and modified by Kenneth Ge
-October 24 2022
+November 15 2022
 '''
 
 import chess
@@ -22,7 +22,7 @@ class KennyYashAI():
         self.restart = False
 
     # max_val for white, min_val for black
-    def choose_move(self, board):
+    def choose_move(self, board) -> chess.Move:
         if self.restart or (self.white and not self.did_move):
             if self.restart:
                 print('new input fen', board.fen())
@@ -47,9 +47,10 @@ class KennyYashAI():
             print('restart')
             self.b.kill()
             self.b = Popen(["./a"], stdout=PIPE, stdin=PIPE, stderr=PIPE)
-            self.b.stdin.write(b'w\r\n')
-            print('new fen', board.fen())
-            self.b.stdin.write(bytes(board.fen() + '\r\n', encoding='ascii'))
+            self.b.stdin.write(b'p\r\n')
+            self.b.stdin.write(bytes(str(len(board.move_stack)) + '\r\n', encoding='ascii'))
+            for move in board.move_stack:
+                self.b.stdin.write(bytes(move.uci() + '\r\n', encoding='ascii'))
 
             self.b.stdin.flush()
             line = self.b.stdout.readline().decode(encoding='ascii')
