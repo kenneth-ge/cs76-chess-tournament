@@ -1,7 +1,7 @@
 # cs76-chess-tournament
 The winning submission for the CS 76 chess AI tournament at Dartmouth College!
 
-It plays around 1550 ELO Lichess, and can beat human players with an even higher rating (because chess bots play weird :shrug:)
+It plays around 1550 ELO Lichess, and can beat human players with an even higher rating (because chess bots hard :shrug:)
 
 ## Techniques
 * Alphabeta pruning
